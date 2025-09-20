@@ -25,12 +25,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Product } from '@/types';
 
-// Form validation schema
 const productSchema = z.object({
   name: z.string().min(1, 'Product name is required'),
   sku: z.string().min(1, 'SKU is required'),
   description: z.string().optional(),
-  unit_of_measure: z.string().min(1, 'Unit of measure is required'),
   cost_price: z.number().min(0, 'Cost price must be positive'),
   selling_price: z.number().min(0, 'Selling price must be positive').optional(),
   current_stock: z.number().min(0, 'Stock cannot be negative').optional(),
@@ -47,13 +45,8 @@ interface ProductFormProps {
   isLoading?: boolean;
 }
 
-export function ProductForm({ 
-  product, 
-  open, 
-  onOpenChange, 
-  onSubmit, 
-  isLoading = false 
-}: ProductFormProps) {
+export default function ProductForm(props: ProductFormProps) {
+  const { product, open, onOpenChange, onSubmit, isLoading = false } = props;
   const isEditing = !!product;
 
   const form = useForm<ProductFormData>({
@@ -62,26 +55,23 @@ export function ProductForm({
       name: product?.name || '',
       sku: product?.sku || '',
       description: product?.description || '',
-      unit_of_measure: product?.unit_of_measure || '',
-      cost_price: product?.cost_price || 0,
-      selling_price: product?.selling_price || 0,
-      current_stock: product?.current_stock || 0,
-      minimum_stock: product?.minimum_stock || 0,
+      cost_price: product?.cost_price ?? undefined,
+      selling_price: product?.selling_price ?? undefined,
+      current_stock: product?.current_stock ?? undefined,
+      minimum_stock: product?.minimum_stock ?? undefined,
     },
   });
 
-  // Reset form when product changes or dialog opens/closes
   useState(() => {
     if (open) {
       form.reset({
         name: product?.name || '',
         sku: product?.sku || '',
         description: product?.description || '',
-        unit_of_measure: product?.unit_of_measure || '',
-        cost_price: product?.cost_price || 0,
-        selling_price: product?.selling_price || 0,
-        current_stock: product?.current_stock || 0,
-        minimum_stock: product?.minimum_stock || 0,
+        cost_price: product?.cost_price ?? undefined,
+        selling_price: product?.selling_price ?? undefined,
+        current_stock: product?.current_stock ?? undefined,
+        minimum_stock: product?.minimum_stock ?? undefined,
       });
     }
   });
@@ -93,188 +83,172 @@ export function ProductForm({
       onOpenChange(false);
     } catch (error) {
       console.error('Error submitting form:', error);
-      // Error handling is done in the parent component
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px]">
-        <DialogHeader>
-          <DialogTitle>
-            {isEditing ? 'Edit Product' : 'Create New Product'}
-          </DialogTitle>
-          <DialogDescription>
-            {isEditing 
-              ? 'Update the product information below.'
-              : 'Fill in the details to create a new product.'
-            }
-          </DialogDescription>
-        </DialogHeader>
+    <div className="max-w-2xl mx-auto w-full py-8">
+  <h1 className="text-2xl font-extrabold mb-6 text-teal-900 drop-shadow-lg">{isEditing ? 'Edit Product' : 'Add Product'}</h1>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+  <DialogContent className="sm:max-w-[600px] bg-sidebar-accent border-sidebar-border rounded-2xl shadow-xl text-teal-900">
+          <DialogHeader>
+            <DialogTitle className="text-teal-900 text-xl font-bold">
+              {isEditing ? 'Edit Product' : 'Create New Product'}
+            </DialogTitle>
+            <DialogDescription className="text-teal-700">
+              {isEditing
+                ? 'Update the product information below.'
+                : 'Fill in the details to create a new product.'
+              }
+            </DialogDescription>
+          </DialogHeader>
 
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+              {/* Product Name */}
               <FormField
                 control={form.control}
                 name="name"
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Product Name</FormLabel>
+                  <FormItem className="bg-sidebar rounded-xl p-4 shadow border border-sidebar-border">
+                    <FormLabel className="text-teal-900 font-semibold">Product Name</FormLabel>
                     <FormControl>
-                      <Input placeholder="Enter product name" {...field} />
+                      <Input placeholder="Enter product name" {...field} className="bg-sidebar-accent text-teal-900 rounded-lg border-sidebar-border placeholder:text-teal-700" />
                     </FormControl>
-                    <FormMessage />
+                    <FormMessage className="text-red-700" />
                   </FormItem>
                 )}
               />
-
+              {/* SKU */}
               <FormField
                 control={form.control}
                 name="sku"
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>SKU</FormLabel>
+                  <FormItem className="bg-sidebar rounded-xl p-4 shadow border border-sidebar-border">
+                    <FormLabel className="text-teal-900 font-semibold">SKU</FormLabel>
                     <FormControl>
-                      <Input placeholder="Enter SKU" {...field} />
+                      <Input placeholder="Enter SKU" {...field} className="bg-sidebar-accent text-teal-900 rounded-lg border-sidebar-border placeholder:text-teal-700" />
                     </FormControl>
-                    <FormMessage />
+                    <FormMessage className="text-red-700" />
                   </FormItem>
                 )}
               />
-            </div>
-
-            <FormField
-              control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Description</FormLabel>
-                  <FormControl>
-                    <Textarea 
-                      placeholder="Enter product description (optional)" 
-                      {...field} 
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <div className="grid grid-cols-2 gap-4">
+              {/* Description */}
               <FormField
                 control={form.control}
-                name="unit_of_measure"
+                name="description"
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Unit of Measure</FormLabel>
+                  <FormItem className="bg-sidebar rounded-xl p-4 shadow border border-sidebar-border">
+                    <FormLabel className="text-teal-900 font-semibold">Description</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g., piece, kg, liter" {...field} />
+                      <Textarea placeholder="Enter product description (optional)" {...field} className="bg-sidebar-accent text-teal-900 rounded-lg border-sidebar-border placeholder:text-teal-700" />
                     </FormControl>
-                    <FormMessage />
+                    <FormMessage className="text-red-700" />
                   </FormItem>
                 )}
               />
-
+              {/* Cost Price */}
               <FormField
                 control={form.control}
                 name="cost_price"
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Cost Price</FormLabel>
+                  <FormItem className="bg-sidebar rounded-xl p-4 shadow border border-sidebar-border">
+                    <FormLabel className="text-teal-900 font-semibold">Cost Price</FormLabel>
                     <FormControl>
-                      <Input 
-                        type="number" 
-                        step="0.01" 
-                        placeholder="0.00" 
-                        {...field}
-                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder=""
+                        value={field.value === undefined ? '' : field.value}
+                        onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))}
+                        className="bg-sidebar-accent text-teal-900 rounded-lg border-sidebar-border placeholder:text-teal-700"
                       />
                     </FormControl>
-                    <FormMessage />
+                    <FormMessage className="text-red-700" />
                   </FormItem>
                 )}
               />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
+              {/* Selling Price */}
               <FormField
                 control={form.control}
                 name="selling_price"
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Selling Price</FormLabel>
+                  <FormItem className="bg-sidebar rounded-xl p-4 shadow border border-sidebar-border">
+                    <FormLabel className="text-teal-900 font-semibold">Selling Price</FormLabel>
                     <FormControl>
-                      <Input 
-                        type="number" 
-                        step="0.01" 
-                        placeholder="0.00" 
-                        {...field}
-                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder=""
+                        value={field.value === undefined ? '' : field.value}
+                        onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))}
+                        className="bg-sidebar-accent text-teal-900 rounded-lg border-sidebar-border placeholder:text-teal-700"
                       />
                     </FormControl>
-                    <FormMessage />
+                    <FormMessage className="text-red-700" />
                   </FormItem>
                 )}
               />
-
+              {/* Current Stock */}
               <FormField
                 control={form.control}
                 name="current_stock"
                 render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Current Stock</FormLabel>
+                  <FormItem className="bg-sidebar rounded-xl p-4 shadow border border-sidebar-border">
+                    <FormLabel className="text-teal-900 font-semibold">Current Stock</FormLabel>
                     <FormControl>
-                      <Input 
-                        type="number" 
-                        step="1" 
-                        placeholder="0" 
-                        {...field}
-                        onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                      <Input
+                        type="number"
+                        step="1"
+                        placeholder=""
+                        value={field.value === undefined ? '' : field.value}
+                        onChange={e => field.onChange(e.target.value === '' ? undefined : parseInt(e.target.value))}
+                        className="bg-sidebar-accent text-teal-900 rounded-lg border-sidebar-border placeholder:text-teal-700"
                       />
                     </FormControl>
-                    <FormMessage />
+                    <FormMessage className="text-red-700" />
                   </FormItem>
                 )}
               />
-            </div>
-
-            <FormField
-              control={form.control}
-              name="minimum_stock"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Minimum Stock</FormLabel>
-                  <FormControl>
-                    <Input 
-                      type="number" 
-                      step="1" 
-                      placeholder="0" 
-                      {...field}
-                      onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <DialogFooter>
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={() => onOpenChange(false)}
-                disabled={isLoading}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isLoading}>
-                {isLoading ? 'Saving...' : (isEditing ? 'Update Product' : 'Create Product')}
-              </Button>
-            </DialogFooter>
-          </form>
-        </Form>
-      </DialogContent>
-    </Dialog>
+              {/* Minimum Stock */}
+              <FormField
+                control={form.control}
+                name="minimum_stock"
+                render={({ field }) => (
+                  <FormItem className="bg-sidebar rounded-xl p-4 shadow border border-sidebar-border">
+                    <FormLabel className="text-teal-900 font-semibold">Minimum Stock</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        step="1"
+                        placeholder=""
+                        value={field.value === undefined ? '' : field.value}
+                        onChange={e => field.onChange(e.target.value === '' ? undefined : parseInt(e.target.value))}
+                        className="bg-sidebar-accent text-teal-900 rounded-lg border-sidebar-border placeholder:text-teal-700"
+                      />
+                    </FormControl>
+                    <FormMessage className="text-red-700" />
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => onOpenChange(false)}
+                  disabled={isLoading}
+                  className="rounded-full bg-sidebar-ring text-sidebar-primary-foreground px-6 py-2 shadow border-none"
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={isLoading} className="rounded-full bg-sidebar-primary text-sidebar-primary-foreground px-6 py-2 shadow border-none">
+                  {isLoading ? 'Saving...' : (isEditing ? 'Update Product' : 'Create Product')}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }

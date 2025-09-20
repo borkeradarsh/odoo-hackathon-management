@@ -100,12 +100,13 @@ export function Sidebar({ children }: SidebarProps) {
   };
 
   return (
-    <div className="flex h-screen bg-gray-100">
+    <div className="flex h-screen bg-sidebar">
       {/* Mobile menu button */}
       <div className="lg:hidden fixed top-4 left-4 z-50">
         <Button
           variant="outline"
           size="sm"
+          className="bg-sidebar-primary text-sidebar-primary-foreground rounded-full shadow-md border-sidebar-border"
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
         >
           {isMobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
@@ -114,25 +115,26 @@ export function Sidebar({ children }: SidebarProps) {
 
       {/* Sidebar */}
       <div className={cn(
-        "fixed inset-y-0 left-0 z-40 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0",
+        "fixed inset-y-0 left-0 z-40 w-64 bg-sidebar shadow-xl rounded-r-3xl border-r border-sidebar-border transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0",
         isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
       )}>
         <div className="flex flex-col h-full">
           {/* Header */}
-          <div className="p-6 border-b">
-            <h1 className="text-xl font-bold text-gray-900">
+          <div className="p-6 border-b border-sidebar-border bg-sidebar-primary rounded-tr-3xl">
+            <h1 className="text-2xl font-extrabold text-sidebar-primary-foreground tracking-tight">
               Manufacturing
             </h1>
-            <p className="text-sm text-gray-600">Management System</p>
+            <p className="text-sm text-sidebar-accent-foreground">Management System</p>
           </div>
 
           {/* User info */}
-          <div className="p-4 border-b bg-gray-50">
+          <div className="p-4 border-b border-sidebar-border bg-sidebar-accent rounded-br-3xl">
             <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
-                <User className="w-4 h-4 text-gray-600" />
+              <div className="w-10 h-10 bg-sidebar-ring rounded-full flex items-center justify-center shadow-md">
+                <User className="w-5 h-5 text-sidebar-primary" />
               </div>
               <div className="flex-1 min-w-0">
+<<<<<<< HEAD
                 <p className="text-sm font-medium text-gray-900 truncate">
                   {profile?.full_name || user?.email || 'User'}
                 </p>
@@ -142,6 +144,17 @@ export function Sidebar({ children }: SidebarProps) {
                     className="text-xs"
                   >
                     {profile?.role === 'admin' ? 'Administrator' : 'Operator'}
+=======
+                <p className="text-base font-semibold text-sidebar-primary truncate">
+                  {userProfile?.full_name || userProfile?.email || 'User'}
+                </p>
+                <div className="flex items-center space-x-2">
+                  <Badge 
+                    variant={userProfile?.app_role === 'admin' ? 'default' : 'secondary'}
+                    className="text-xs bg-sidebar-primary text-sidebar-primary-foreground border-none px-2 py-0.5 rounded-full shadow"
+                  >
+                    {userProfile?.app_role === 'admin' ? 'admin' : 'operator'}
+>>>>>>> 9ae20797b945a35548887629a67594d7e1ef5a3a
                   </Badge>
                 </div>
               </div>
@@ -153,22 +166,21 @@ export function Sidebar({ children }: SidebarProps) {
             {filteredNavItems.map((item) => {
               const Icon = item.icon
               const isActive = pathname === item.href
-              
               return (
                 <Link
                   key={item.href}
                   href={item.href}
                   onClick={() => setIsMobileMenuOpen(false)}
                   className={cn(
-                    "flex items-center space-x-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                    "flex items-center space-x-3 px-3 py-2 rounded-xl text-sm font-semibold transition-colors",
                     isActive
-                      ? "bg-gray-900 text-white"
-                      : "text-gray-700 hover:bg-gray-100"
+                      ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-md"
+                      : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                   )}
                 >
                   <Icon className={cn(
                     "w-5 h-5",
-                    isActive ? "text-white" : "text-gray-500"
+                    isActive ? "text-sidebar-primary-foreground" : "text-sidebar-ring"
                   )} />
                   <span>{item.title}</span>
                 </Link>
@@ -177,11 +189,11 @@ export function Sidebar({ children }: SidebarProps) {
           </nav>
 
           {/* Sign out button */}
-          <div className="p-4 border-t">
+          <div className="p-4 border-t border-sidebar-border">
             <Button
               variant="outline"
               onClick={handleSignOut}
-              className="w-full flex items-center space-x-2"
+              className="w-full flex items-center space-x-2 rounded-full bg-destructive text-white shadow-md border-none"
               disabled={signingOut}
             >
               <LogOut className="w-4 h-4" />
@@ -204,7 +216,7 @@ export function Sidebar({ children }: SidebarProps) {
 
       {/* Main content */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 p-6">
+        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-background p-6 rounded-l-3xl">
           {children}
         </main>
       </div>
