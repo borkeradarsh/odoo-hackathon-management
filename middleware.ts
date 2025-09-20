@@ -1,36 +1,118 @@
-import { createServer } from '@/lib/supabase/server'
-import { NextResponse, type NextRequest } from 'next/server'
+import { createServerClient, type CookieOptions } from '@supabase/ssr';
+import { NextResponse, type NextRequest } from 'next/server';
 
 export async function middleware(request: NextRequest) {
-  const supabase = await createServer()
-  
-  // Check if there is any supabase session
+  let response = NextResponse.next({
+    request: {
+      headers: request.headers,
+    },
+  });
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return request.cookies.get(name)?.value;
+        },
+        set(name: string, value: string, options: CookieOptions) {
+          request.cookies.set({
+            name,
+            value,
+            ...options,
+          });
+          response = NextResponse.next({
+            request: {
+              headers: request.headers,
+            },
+          });
+          response.cookies.set({
+            name,
+            value,
+            ...options,
+          });
+        },
+        remove(name: string, options: CookieOptions) {
+          request.cookies.set({
+            name,
+            value: '',
+            ...options,
+          });
+          response = NextResponse.next({
+            request: {
+              headers: request.headers,
+            },
+          });
+          response.cookies.set({
+            name,
+            value: '',
+            ...options,
+          });
+        },
+      },
+    }
+  );
+
+  // Refresh session if expired - crucial for RLS
+  // Use getUser() instead of getSession() for server-side validation
   const {
-    data: { session },
-  } = await supabase.auth.getSession()
+    data: { user },
+    error
+  } = await supabase.auth.getUser();
 
-  // If user is signed in and the current path is /login redirect the user to /dashboard
-  if (session && request.nextUrl.pathname === '/auth/login') {
-    return NextResponse.redirect(new URL('/dashboard', request.url))
+  console.log('Middleware Debug:', {
+    pathname: request.nextUrl.pathname,
+    hasUser: !!user,
+    userId: user?.id || null,
+    authError: error?.message || null
+  });
+
+  // Skip middleware for API routes and static files
+  if (request.nextUrl.pathname.startsWith('/api') || 
+      request.nextUrl.pathname.startsWith('/_next') ||
+      request.nextUrl.pathname === '/favicon.ico') {
+    return response;
   }
 
-  // If user is not signed in and the current path is not /login redirect the user to /login
-  if (!session && request.nextUrl.pathname !== '/auth/login' && !request.nextUrl.pathname.startsWith('/auth')) {
-    return NextResponse.redirect(new URL('/auth/login', request.url))
+  // Skip middleware for auth callback to prevent redirect loops
+  if (request.nextUrl.pathname === '/auth/callback') {
+    return response;
   }
 
-  return NextResponse.next()
+  // If user is signed in and trying to access login page, redirect to dashboard
+  if (user && request.nextUrl.pathname === '/auth/login') {
+    console.log('Redirecting authenticated user from login to dashboard');
+    return NextResponse.redirect(new URL('/dashboard', request.url));
+  }
+
+  // If user is NOT signed in and trying to access protected routes, redirect to login
+  if (!user && 
+      !request.nextUrl.pathname.startsWith('/auth') && 
+      request.nextUrl.pathname !== '/') {
+    console.log('Redirecting unauthenticated user to login');
+    return NextResponse.redirect(new URL('/auth/login', request.url));
+  }
+
+  // If user is NOT signed in and tries to access root, redirect to login
+  if (!user && request.nextUrl.pathname === '/') {
+    console.log('Redirecting from root to login');
+    return NextResponse.redirect(new URL('/auth/login', request.url));
+  }
+
+  return response;
 }
 
 export const config = {
-  /*
-   * Match all request paths except for the ones starting with:
-   * - _next/static (static files)
-   * - _next/image (image optimization files)
-   * - favicon.ico (favicon file)
-   * Feel free to modify this pattern to include more paths.
-   */
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    /*
+     * Match all request paths except for:
+     * - api (API routes)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - public files (png, jpg, jpeg, gif, svg, ico, webp)
+     */
+    '/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:png|jpg|jpeg|gif|svg|ico|webp)$).*)',
   ],
-}
+};

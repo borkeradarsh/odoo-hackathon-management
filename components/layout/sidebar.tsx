@@ -75,12 +75,12 @@ export function Sidebar({ children }: SidebarProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [signOutError, setSignOutError] = useState<string | null>(null);
-  const { userProfile, signOut } = useAuth();
+  const { profile, user, signOut } = useAuth();
   const pathname = usePathname();
 
   const filteredNavItems = navItems.filter(item => {
     if (!item.roles) return true;
-    return item.roles.includes(userProfile?.app_role || 'operator');
+    return item.roles.includes(profile?.role || 'operator');
   });
 
   const handleSignOut = async () => {
@@ -88,8 +88,12 @@ export function Sidebar({ children }: SidebarProps) {
     setSignOutError(null);
     try {
       await signOut();
-    } catch (err: any) {
-      setSignOutError(err?.message || 'Sign out failed');
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setSignOutError(err.message);
+      } else {
+        setSignOutError('Sign out failed');
+      }
     } finally {
       setSigningOut(false);
     }
@@ -130,14 +134,14 @@ export function Sidebar({ children }: SidebarProps) {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-gray-900 truncate">
-                  {userProfile?.full_name || userProfile?.email || 'User'}
+                  {profile?.full_name || user?.email || 'User'}
                 </p>
                 <div className="flex items-center space-x-2">
                   <Badge 
-                    variant={userProfile?.app_role === 'admin' ? 'default' : 'secondary'}
+                    variant={profile?.role === 'admin' ? 'default' : 'secondary'}
                     className="text-xs"
                   >
-                    {userProfile?.app_role || 'operator'}
+                    {profile?.role === 'admin' ? 'Administrator' : 'Operator'}
                   </Badge>
                 </div>
               </div>

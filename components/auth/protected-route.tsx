@@ -15,16 +15,26 @@ export function ProtectedRoute({
   allowedRoles,
   fallback 
 }: ProtectedRouteProps) {
-  const { user, userProfile, loading } = useAuth()
+  const { user, profile, loading } = useAuth()
   const router = useRouter()
+
+  console.log('🔐 ProtectedRoute Debug:', {
+    hasUser: !!user,
+    hasProfile: !!profile,
+    isLoading: loading,
+    userRole: profile?.role || 'none',
+    allowedRoles: allowedRoles || 'any'
+  });
 
   useEffect(() => {
     if (!loading && !user) {
+      console.log('🔐 ProtectedRoute: Redirecting to login');
       router.push('/auth/login')
     }
   }, [user, loading, router])
 
   if (loading) {
+    console.log('🔐 ProtectedRoute: Showing auth loading spinner');
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
@@ -32,7 +42,8 @@ export function ProtectedRoute({
     )
   }
 
-  if (!user || !userProfile) {
+  if (!user || !profile) {
+    console.log('🔐 ProtectedRoute: No user/profile, showing auth loading spinner');
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
@@ -40,7 +51,8 @@ export function ProtectedRoute({
     )
   }
 
-  if (allowedRoles && !allowedRoles.includes(userProfile.app_role)) {
+  if (allowedRoles && !allowedRoles.includes(profile.role)) {
+    console.log('🔐 ProtectedRoute: Access denied for role:', profile.role);
     return (
       fallback || (
         <div className="min-h-screen flex items-center justify-center">
@@ -57,5 +69,6 @@ export function ProtectedRoute({
     )
   }
 
+  console.log('🔐 ProtectedRoute: ✅ Allowing access, rendering children');
   return <>{children}</>
 }
