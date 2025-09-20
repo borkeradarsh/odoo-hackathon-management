@@ -38,26 +38,50 @@ const navItems: NavItem[] = [
     title: 'Products',
     href: '/products',
     icon: Package,
+    roles: ['admin'],
   },
   {
     title: 'BOMs',
     href: '/boms',
     icon: FileText,
+    roles: ['admin'],
   },
   {
     title: 'Manufacturing Orders',
     href: '/manufacturing',
     icon: ClipboardList,
+    roles: ['admin'],
   },
   {
     title: 'Work Orders',
     href: '/work-orders',
     icon: Wrench,
+    roles: ['admin'],
   },
   {
     title: 'Stock Management',
     href: '/stock',
     icon: TrendingUp,
+    roles: ['admin'],
+  },
+  // Operator-specific routes
+  {
+    title: 'My Work Orders',
+    href: '/operator/my-orders',
+    icon: Wrench,
+    roles: ['operator'],
+  },
+  {
+    title: 'BOMs (View Only)',
+    href: '/operator/boms',
+    icon: FileText,
+    roles: ['operator'],
+  },
+  {
+    title: 'Stock Info',
+    href: '/operator/stock',
+    icon: TrendingUp,
+    roles: ['operator'],
   },
   {
     title: 'Settings',
@@ -88,14 +112,14 @@ export function Sidebar({ children }: SidebarProps) {
     setSignOutError(null);
     try {
       await signOut();
+      // The auth provider will handle the redirect
     } catch (err: unknown) {
       if (err instanceof Error) {
         setSignOutError(err.message);
       } else {
         setSignOutError('Sign out failed');
       }
-    } finally {
-      setSigningOut(false);
+      setSigningOut(false); // Only reset if there's an error
     }
   };
 

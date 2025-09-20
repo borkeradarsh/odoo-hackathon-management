@@ -121,7 +121,7 @@ export default function ManufacturingOrdersPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          productId: parseInt(selectedProductId),
+          product_id: parseInt(selectedProductId),
           quantity: quantityNum,
         }),
       });
@@ -233,11 +233,13 @@ export default function ManufacturingOrdersPage() {
                             No products available
                           </SelectItem>
                         ) : (
-                          products.map((product) => (
-                            <SelectItem key={product.id} value={product.id.toString()}>
-                              {product.name}
-                            </SelectItem>
-                          ))
+                          products
+                            .filter(product => product.id && product.id.toString().trim() !== '') // Filter out invalid IDs
+                            .map((product) => (
+                              <SelectItem key={product.id} value={product.id.toString()}>
+                                {product.name}
+                              </SelectItem>
+                            ))
                         )}
                       </SelectContent>
                     </Select>

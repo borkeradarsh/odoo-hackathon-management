@@ -68,15 +68,11 @@ export async function middleware(request: NextRequest) {
     authError: error?.message || null
   });
 
-  // Skip middleware for API routes and static files
+  // Skip middleware for API routes, static files, and auth routes
   if (request.nextUrl.pathname.startsWith('/api') || 
       request.nextUrl.pathname.startsWith('/_next') ||
-      request.nextUrl.pathname === '/favicon.ico') {
-    return response;
-  }
-
-  // Skip middleware for auth callback to prevent redirect loops
-  if (request.nextUrl.pathname === '/auth/callback') {
+      request.nextUrl.pathname === '/favicon.ico' ||
+      request.nextUrl.pathname.startsWith('/auth/')) {
     return response;
   }
 
@@ -84,6 +80,11 @@ export async function middleware(request: NextRequest) {
   if (user && request.nextUrl.pathname === '/auth/login') {
     console.log('Redirecting authenticated user from login to dashboard');
     return NextResponse.redirect(new URL('/dashboard', request.url));
+  }
+
+  // Allow access to logout page regardless of auth status
+  if (request.nextUrl.pathname === '/auth/logout') {
+    return response;
   }
 
   // If user is NOT signed in and trying to access protected routes, redirect to login

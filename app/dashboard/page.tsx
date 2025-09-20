@@ -155,25 +155,7 @@ export default function DashboardPage() {
     mutate(); // Trigger fresh fetch
   };
 
-  const getCacheInfo = () => {
-    try {
-      const cached = localStorage.getItem(DASHBOARD_CACHE_KEY);
-      if (cached) {
-        const { timestamp } = JSON.parse(cached);
-        const age = Date.now() - timestamp;
-        const isExpired = age > CACHE_EXPIRY_TIME;
-        return {
-          exists: true,
-          age: Math.round(age / 1000), // in seconds
-          isExpired,
-          expiresIn: Math.max(0, Math.round((CACHE_EXPIRY_TIME - age) / 1000))
-        };
-      }
-    } catch (error) {
-      console.warn('Failed to read cache info:', error);
-    }
-    return { exists: false };
-  };
+
 
   const handleRefreshWithCacheBust = () => {
     clearCache();

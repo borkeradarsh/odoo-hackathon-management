@@ -14,6 +14,12 @@ export interface UserProfile {
   updated_at: string
 }
 
+// Operator (subset of UserProfile for operator role)
+export interface Operator {
+  id: string
+  full_name: string
+}
+
 // Product
 export interface Product {
   id: number

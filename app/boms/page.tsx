@@ -446,6 +446,7 @@ export default function BomsPage() {
                     ) : (
                       products
                         .filter(product => product.type === 'Finished Good')
+                        .filter(product => product.id && product.id.toString().trim() !== '') // Filter out invalid IDs
                         .map((product) => (
                           <SelectItem key={product.id} value={product.id.toString()}>
                             {product.name}
@@ -479,6 +480,7 @@ export default function BomsPage() {
                             product.id !== selectedProductId && 
                             product.type === 'Raw Material'
                           )
+                          .filter(product => product.id && product.id.toString().trim() !== '') // Filter out invalid IDs
                           .map((product) => (
                             <SelectItem key={product.id} value={product.id.toString()}>
                               {product.name}

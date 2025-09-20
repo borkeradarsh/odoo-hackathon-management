@@ -3,33 +3,50 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { logoutAction } from './actions';
 
 export default function LogoutPage() {
   const router = useRouter();
 
   useEffect(() => {
     const logout = async () => {
-      const supabase = createClient();
-      
-      // Sign out from Supabase
-      await supabase.auth.signOut();
-      
-      // Clear all possible auth-related storage
-      if (typeof window !== 'undefined') {
-        localStorage.clear();
-        sessionStorage.clear();
+      try {
+        const supabase = createClient();
         
-        // Clear all cookies
-        document.cookie.split(";").forEach((c) => {
-          const eqPos = c.indexOf("=");
-          const name = eqPos > -1 ? c.substr(0, eqPos) : c;
-          document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/";
-          document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=" + window.location.hostname;
-        });
+        // Client-side signout
+        await supabase.auth.signOut();
+        
+        // Clear all possible auth-related storage
+        if (typeof window !== 'undefined') {
+          localStorage.clear();
+          sessionStorage.clear();
+          
+          // Clear all cookies more thoroughly
+          const cookies = document.cookie.split(";");
+          cookies.forEach((cookie) => {
+            const eqPos = cookie.indexOf("=");
+            const name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim();
+            if (name) {
+              // Clear for current domain and path
+              document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
+              document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=${window.location.hostname}`;
+              // Clear for parent domain as well
+              const parts = window.location.hostname.split('.');
+              if (parts.length > 1) {
+                document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=.${parts.slice(-2).join('.')}`;
+              }
+            }
+          });
+        }
+
+        // Also call server action for server-side cleanup
+        await logoutAction();
+        
+      } catch (error) {
+        console.error('Logout error:', error);
+        // Force redirect even if there's an error
+        window.location.href = '/auth/login';
       }
-      
-      // Force redirect to login
-      window.location.href = '/auth/login';
     };
     
     logout();

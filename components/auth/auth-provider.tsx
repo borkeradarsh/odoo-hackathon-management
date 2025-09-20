@@ -61,9 +61,54 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, [supabase]);
 
   const signOut = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
-    setProfile(null);
+    try {
+      // Sign out from Supabase
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        console.error('Supabase signout error:', error);
+        throw error;
+      }
+
+      // Clear local state
+      setUser(null);
+      setProfile(null);
+
+      // Clear browser storage
+      if (typeof window !== 'undefined') {
+        localStorage.clear();
+        sessionStorage.clear();
+        
+        // Clear cookies more reliably
+        const cookies = document.cookie.split(";");
+        cookies.forEach((cookie) => {
+          const eqPos = cookie.indexOf("=");
+          const name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim();
+          if (name) {
+            // Clear for current domain and path
+            document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/`;
+            document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=${window.location.hostname}`;
+            // Clear for parent domain as well
+            const parts = window.location.hostname.split('.');
+            if (parts.length > 1) {
+              document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=.${parts.slice(-2).join('.')}`;
+            }
+          }
+        });
+
+        // Force redirect to login page
+        window.location.href = '/auth/login';
+      }
+    } catch (error) {
+      console.error('Error during signout:', error);
+      // Even if there's an error, try to clear local state and redirect
+      setUser(null);
+      setProfile(null);
+      if (typeof window !== 'undefined') {
+        window.location.href = '/auth/login';
+      }
+      throw error;
+    }
   };
 
   const value = { user, profile, loading, signOut };

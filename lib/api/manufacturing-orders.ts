@@ -5,8 +5,9 @@ const API_BASE_URL = process.env.NODE_ENV === 'production'
   : 'http://localhost:3000';
 
 export interface CreateManufacturingOrderRequest {
-  productId: number;
+  product_id: number;
   quantity: number;
+  assignee_id?: string;
 }
 
 export interface CreateManufacturingOrderResponse {
@@ -73,12 +74,13 @@ export const manufacturingOrderApi = {
       body: JSON.stringify(data),
     });
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to create manufacturing order');
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || 'Failed to create manufacturing order');
     }
 
-    return response.json();
+    return result;
   },
 
   // Get a specific manufacturing order by ID
