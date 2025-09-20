@@ -1,8 +1,11 @@
-import { ProtectedRoute } from '@/components/auth/protected-route'
-import { Sidebar } from '@/components/layout/sidebar'
-import { PageHeader } from '@/components/layout/page-header'
-import { StatsCard } from '@/components/dashboard/stats-card'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+
+"use client";
+import { useEffect, useState } from 'react';
+import { ProtectedRoute } from '@/components/auth/protected-route';
+import { Sidebar } from '@/components/layout/sidebar';
+import { PageHeader } from '@/components/layout/page-header';
+import { StatsCard } from '@/components/dashboard/stats-card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { 
   Package, 
   FileText, 
@@ -10,18 +13,39 @@ import {
   TrendingDown,
   CheckCircle,
   Clock
-} from 'lucide-react'
+} from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
+import type { DashboardStats } from '@/types/index';
+
 
 export default function DashboardPage() {
-  // TODO: Replace with actual data from Supabase
-  const stats = {
-    totalProducts: 125,
-    activeBOMs: 45,
-    activeManufacturingOrders: 12,
-    pendingWorkOrders: 28,
-    lowStockProducts: 8,
-    completedOrdersThisMonth: 34
-  }
+  // Dynamic dashboard stats
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const supabase = createClient();
+        // The lead developer should provide a view or function for dashboard stats
+        // Example: select * from dashboard_stats (replace with actual table/view)
+        const { data, error } = await supabase
+          .from('dashboard_stats')
+          .select('*')
+          .single();
+        if (error) throw error;
+        setStats(data as DashboardStats);
+      } catch (err: any) {
+        setError(err.message || 'Failed to load dashboard stats');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchStats();
+  }, []);
 
   return (
     <ProtectedRoute>
@@ -31,45 +55,52 @@ export default function DashboardPage() {
             title="Dashboard"
             description="Overview of your manufacturing operations"
           />
-          
           {/* Stats Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <StatsCard
-              title="Total Products"
-              value={stats.totalProducts}
-              description="Products in inventory"
-              icon={Package}
-            />
-            <StatsCard
-              title="Active BOMs"
-              value={stats.activeBOMs}
-              description="Bill of materials configured"
-              icon={FileText}
-            />
-            <StatsCard
-              title="Manufacturing Orders"
-              value={stats.activeManufacturingOrders}
-              description="Currently in progress"
-              icon={ClipboardList}
-            />
-            <StatsCard
-              title="Pending Work Orders"
-              value={stats.pendingWorkOrders}
-              description="Awaiting execution"
-              icon={Clock}
-            />
-            <StatsCard
-              title="Low Stock Items"
-              value={stats.lowStockProducts}
-              description="Below minimum threshold"
-              icon={TrendingDown}
-            />
-            <StatsCard
-              title="Completed This Month"
-              value={stats.completedOrdersThisMonth}
-              description="Manufacturing orders finished"
-              icon={CheckCircle}
-            />
+            {loading ? (
+              <div className="col-span-3 text-center py-8">Loading stats...</div>
+            ) : error ? (
+              <div className="col-span-3 text-center text-red-600 py-8">{error}</div>
+            ) : stats ? (
+              <>
+                <StatsCard
+                  title="Total Products"
+                  value={stats.total_products}
+                  description="Products in inventory"
+                  icon={Package}
+                />
+                <StatsCard
+                  title="Active BOMs"
+                  value={stats.total_active_boms}
+                  description="Bill of materials configured"
+                  icon={FileText}
+                />
+                <StatsCard
+                  title="Manufacturing Orders"
+                  value={stats.active_manufacturing_orders}
+                  description="Currently in progress"
+                  icon={ClipboardList}
+                />
+                <StatsCard
+                  title="Pending Work Orders"
+                  value={stats.pending_work_orders}
+                  description="Awaiting execution"
+                  icon={Clock}
+                />
+                <StatsCard
+                  title="Low Stock Items"
+                  value={stats.low_stock_products}
+                  description="Below minimum threshold"
+                  icon={TrendingDown}
+                />
+                <StatsCard
+                  title="Completed This Month"
+                  value={stats.completed_orders_this_month}
+                  description="Manufacturing orders finished"
+                  icon={CheckCircle}
+                />
+              </>
+            ) : null}
           </div>
 
           {/* Recent Activity */}

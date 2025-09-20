@@ -8,7 +8,7 @@ export function AuthForm() {
 
   useEffect(() => {
     // Redirect to the new login page
-    router.push('/login')
+    router.push('/auth/login')
   }, [router])
 
   return (
