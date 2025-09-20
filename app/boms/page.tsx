@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import useSWR, { mutate } from 'swr';
-import { Plus, Edit, Trash2, Loader2, X } from 'lucide-react';
+import { Plus, Edit, Trash2, Loader2, X, CheckCircle, AlertCircle } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -20,6 +20,21 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from '@/components/ui/alert';
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -33,10 +48,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Product } from '@/types';
 import { bomApi, BomWithRelations } from '@/lib/api';
+import { Sidebar } from '@/components/layout/sidebar';
 
 // Component item type for form state
 interface ComponentItem {
-  product_id: string;
+  product_id: number;
   quantity: number;
   product?: Product;
 }
@@ -52,16 +68,34 @@ const fetcher = (url: string) => fetch(url).then((res) => {
 export default function BomsPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editingBom, setEditingBom] = useState<BomWithRelations | null>(null);
+  const [isDeleting, setIsDeleting] = useState<string | null>(null); // Track which BOM is being deleted
+  
+  // Notification state
+  const [notification, setNotification] = useState<{
+    type: 'success' | 'error';
+    title: string;
+    message: string;
+  } | null>(null);
+  
+  // Delete confirmation state
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [bomToDelete, setBomToDelete] = useState<string | null>(null);
   
   // Form state
-  const [selectedProductId, setSelectedProductId] = useState('');
-  const [selectedVersion, setSelectedVersion] = useState('1.0');
-  const [selectedQuantity, setSelectedQuantity] = useState(1);
+  const [selectedProductId, setSelectedProductId] = useState<number | null>(null);
   const [items, setItems] = useState<ComponentItem[]>([]);
   
   // Component adding state
-  const [selectedComponentId, setSelectedComponentId] = useState('');
+  const [selectedComponentId, setSelectedComponentId] = useState<number | null>(null);
   const [componentQuantity, setComponentQuantity] = useState(1);
+
+  // Helper function to show notifications
+  const showNotification = (type: 'success' | 'error', title: string, message: string) => {
+    setNotification({ type, title, message });
+    // Auto-hide after 5 seconds
+    setTimeout(() => setNotification(null), 5000);
+  };
 
   // Fetch BOMs using SWR
   const { 
@@ -83,34 +117,51 @@ export default function BomsPage() {
   // Handle form submission
   const handleSubmit = async () => {
     if (!selectedProductId || items.length === 0) {
-      alert('Please select a finished product and add at least one component.');
+      showNotification('error', 'Validation Error', 'Please select a finished product and add at least one component.');
+      return;
+    }
+
+    // Find the selected product to get its name
+    const selectedProduct = products.find(p => p.id === selectedProductId);
+    if (!selectedProduct) {
+      showNotification('error', 'Product Error', 'Selected product not found.');
       return;
     }
 
     setIsSubmitting(true);
     try {
       const bomData = {
-        product_id: selectedProductId,
-        version: selectedVersion,
-        quantity: selectedQuantity,
+        name: selectedProduct.name, // Use the selected product's name as BOM name
+        product_id: selectedProductId!.toString(),
         items: items.map(item => ({
-          product_id: item.product_id,
+          product_id: item.product_id.toString(),
           quantity: item.quantity
         }))
       };
 
-      await bomApi.createBom(bomData);
-      alert('BOM created successfully!');
+      if (editingBom) {
+        // For now, show a message that editing is not fully implemented
+        showNotification('error', 'Edit Not Available', 'BOM editing is not yet fully implemented. You can delete and recreate the BOM instead.');
+        setFormOpen(false);
+        setEditingBom(null);
+        resetForm();
+        return;
+      } else {
+        // Create new BOM
+        await bomApi.createBom(bomData);
+        showNotification('success', 'Success', 'BOM created successfully!');
+      }
       
       // Refresh the data
       mutate('/api/boms');
       
       // Reset form
       resetForm();
+      setEditingBom(null);
       setFormOpen(false);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
-      alert(`Error creating BOM: ${errorMessage}`);
+      showNotification('error', 'Error', `Error creating BOM: ${errorMessage}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -119,7 +170,7 @@ export default function BomsPage() {
   // Add component to BOM
   const handleAddComponent = () => {
     if (!selectedComponentId || componentQuantity <= 0) {
-      alert('Please select a component and enter a valid quantity.');
+      showNotification('error', 'Validation Error', 'Please select a component and enter a valid quantity.');
       return;
     }
 
@@ -141,7 +192,7 @@ export default function BomsPage() {
     }
 
     // Reset component selection
-    setSelectedComponentId('');
+    setSelectedComponentId(null);
     setComponentQuantity(1);
   };
 
@@ -152,11 +203,9 @@ export default function BomsPage() {
 
   // Reset form state
   const resetForm = () => {
-    setSelectedProductId('');
-    setSelectedVersion('1.0');
-    setSelectedQuantity(1);
+    setSelectedProductId(null);
     setItems([]);
-    setSelectedComponentId('');
+    setSelectedComponentId(null);
     setComponentQuantity(1);
   };
 
@@ -165,45 +214,103 @@ export default function BomsPage() {
     setFormOpen(open);
     if (!open) {
       resetForm();
+      setEditingBom(null); // Clear editing state when closing
+    }
+  };
+
+  // Handle edit BOM
+  const handleEditBom = (bom: BomWithRelations) => {
+    setEditingBom(bom);
+    setSelectedProductId(parseInt(bom.product.id));
+    
+    // Convert BOM items to component items for editing
+    const componentItems: ComponentItem[] = bom.bom_items.map(item => ({
+      product_id: parseInt(item.product_id),
+      quantity: item.quantity,
+      // Create a partial Product object with available data
+      product: {
+        id: parseInt(item.component.id),
+        name: item.component.name,
+        type: 'Raw Material', // Default value
+        stock_on_hand: 0, // Default value
+        created_at: '', // Default value
+        min_stock_level: 0 // Default value
+      } as Product
+    }));
+    setItems(componentItems);
+    
+    setFormOpen(true);
+  };
+
+  // Handle delete BOM (triggered by the delete button to open confirmation)
+  const handleDeleteBomClick = (bomId: string) => {
+    setBomToDelete(bomId);
+    setDeleteConfirmOpen(true);
+  };
+
+  // Handle confirmed delete BOM
+  const handleConfirmDelete = async () => {
+    if (!bomToDelete) return;
+
+    setIsDeleting(bomToDelete);
+    try {
+      await bomApi.deleteBom(bomToDelete);
+      
+      // Refresh the data
+      mutate('/api/boms');
+      
+      showNotification('success', 'Success', 'BOM deleted successfully!');
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+      showNotification('error', 'Error', `Error deleting BOM: ${errorMessage}`);
+    } finally {
+      setIsDeleting(null);
+      setBomToDelete(null);
+      setDeleteConfirmOpen(false);
     }
   };
 
   if (bomsError || productsError) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Error</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-destructive">Failed to load data. Please try again.</p>
-          <Button 
-            onClick={() => {
-              mutate('/api/boms');
-              mutate('/api/products');
-            }} 
-            className="mt-4"
-          >
-            Retry
-          </Button>
-        </CardContent>
-      </Card>
+      <Sidebar>
+        <div className="p-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Error</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-destructive">Failed to load data. Please try again.</p>
+              <Button 
+                onClick={() => {
+                  mutate('/api/boms');
+                  mutate('/api/products');
+                }} 
+                className="mt-4"
+              >
+                Retry
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </Sidebar>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Bills of Material</h1>
-          <p className="text-muted-foreground">
-            Manage product recipes and component requirements.
-          </p>
+    <Sidebar>
+      <div className="p-6 space-y-6 overflow-auto">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Bills of Material</h1>
+            <p className="text-muted-foreground">
+              Manage product recipes and component requirements.
+            </p>
+          </div>
+          <Button onClick={() => setFormOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Create New BOM
+          </Button>
         </div>
-        <Button onClick={() => setFormOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Create New BOM
-        </Button>
-      </div>
 
       <Card>
         <CardHeader>
@@ -231,10 +338,7 @@ export default function BomsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Finished Product</TableHead>
-                  <TableHead>Version</TableHead>
-                  <TableHead>Quantity</TableHead>
                   <TableHead>Components</TableHead>
-                  <TableHead>Status</TableHead>
                   <TableHead>Created</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -245,27 +349,60 @@ export default function BomsPage() {
                     <TableCell className="font-medium">
                       <div>
                         <div>{bom.product?.name}</div>
-                        <div className="text-sm text-muted-foreground">{bom.product?.sku}</div>
+                        <div className="text-sm text-muted-foreground">ID: {bom.product?.id}</div>
                       </div>
                     </TableCell>
-                    <TableCell>{bom.version}</TableCell>
-                    <TableCell>{bom.quantity}</TableCell>
-                    <TableCell>{bom.bom_lines?.length || 0} components</TableCell>
                     <TableCell>
-                      <Badge variant={bom.is_active ? "default" : "secondary"}>
-                        {bom.is_active ? "Active" : "Inactive"}
-                      </Badge>
+                      <div className="space-y-1">
+                        <div className="text-sm font-medium">
+                          {bom.bom_items?.length || 0} components
+                        </div>
+                        {bom.bom_items && bom.bom_items.length > 0 && (
+                          <div className="space-y-0.5">
+                            {bom.bom_items.slice(0, 3).map((item, index) => (
+                              <div key={index} className="text-sm text-muted-foreground flex items-center gap-1">
+                                <span className="w-1 h-1 bg-gray-400 rounded-full"></span>
+                                <span className="truncate max-w-[120px]" title={item.component?.name || `Product ${item.product_id}`}>
+                                  {item.component?.name || `Product ${item.product_id}`}
+                                </span>
+                                <span className="text-blue-600 font-medium">
+                                  ({item.quantity})
+                                </span>
+                              </div>
+                            ))}
+                            {bom.bom_items.length > 3 && (
+                              <div className="text-xs text-muted-foreground italic">
+                                +{bom.bom_items.length - 3} more...
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>
                       {new Date(bom.created_at).toLocaleDateString()}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        <Button variant="outline" size="sm">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleEditBom(bom)}
+                          disabled={isSubmitting}
+                        >
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button variant="outline" size="sm">
-                          <Trash2 className="h-4 w-4" />
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleDeleteBomClick(bom.id)}
+                          disabled={isDeleting === bom.id}
+                        >
+                          {isDeleting === bom.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-4 w-4" />
+                          )}
                         </Button>
                       </div>
                     </TableCell>
@@ -281,9 +418,9 @@ export default function BomsPage() {
       <Dialog open={formOpen} onOpenChange={handleFormClose}>
         <DialogContent className="sm:max-w-[700px] max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Create New BOM</DialogTitle>
+            <DialogTitle>{editingBom ? 'Edit BOM' : 'Create New BOM'}</DialogTitle>
             <DialogDescription>
-              Define the components and quantities needed to produce a finished product.
+              {editingBom ? 'View and modify the BOM details.' : 'Define the components and quantities needed to produce a finished product.'}
             </DialogDescription>
           </DialogHeader>
 
@@ -292,7 +429,11 @@ export default function BomsPage() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="finished-product">Finished Product</Label>
-                <Select value={selectedProductId} onValueChange={setSelectedProductId}>
+                <Select 
+                  value={selectedProductId?.toString() || ""} 
+                  onValueChange={(value) => setSelectedProductId(value ? parseInt(value) : null)}
+                  disabled={editingBom !== null} // Disable when editing
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Select finished product" />
                   </SelectTrigger>
@@ -303,37 +444,18 @@ export default function BomsPage() {
                         <span className="ml-2">Loading products...</span>
                       </div>
                     ) : (
-                      products.map((product) => (
-                        <SelectItem key={product.id} value={product.id}>
-                          {product.name} ({product.sku})
-                        </SelectItem>
-                      ))
+                      products
+                        .filter(product => product.type === 'Finished Good')
+                        .map((product) => (
+                          <SelectItem key={product.id} value={product.id.toString()}>
+                            {product.name}
+                          </SelectItem>
+                        ))
                     )}
                   </SelectContent>
                 </Select>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="version">Version</Label>
-                <Input
-                  id="version"
-                  value={selectedVersion}
-                  onChange={(e) => setSelectedVersion(e.target.value)}
-                  placeholder="e.g., 1.0"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="quantity">Quantity to Produce</Label>
-              <Input
-                id="quantity"
-                type="number"
-                value={selectedQuantity}
-                onChange={(e) => setSelectedQuantity(parseInt(e.target.value) || 1)}
-                min="1"
-                placeholder="1"
-              />
             </div>
 
             {/* Component Selection */}
@@ -343,17 +465,23 @@ export default function BomsPage() {
                 
                 <div className="grid grid-cols-3 gap-4">
                   <div className="col-span-2">
-                    <Label htmlFor="component">Component</Label>
-                    <Select value={selectedComponentId} onValueChange={setSelectedComponentId}>
+                    <Label htmlFor="component">Component (Raw Materials)</Label>
+                    <Select 
+                      value={selectedComponentId?.toString() || ""} 
+                      onValueChange={(value) => setSelectedComponentId(value ? parseInt(value) : null)}
+                    >
                       <SelectTrigger>
                         <SelectValue placeholder="Select component" />
                       </SelectTrigger>
                       <SelectContent>
                         {products
-                          .filter(product => product.id !== selectedProductId)
+                          .filter(product => 
+                            product.id !== selectedProductId && 
+                            product.type === 'Raw Material'
+                          )
                           .map((product) => (
-                            <SelectItem key={product.id} value={product.id}>
-                              {product.name} ({product.sku})
+                            <SelectItem key={product.id} value={product.id.toString()}>
+                              {product.name}
                             </SelectItem>
                           ))}
                       </SelectContent>
@@ -393,7 +521,6 @@ export default function BomsPage() {
                       <div key={index} className="flex items-center justify-between p-2 bg-muted rounded">
                         <div className="flex-1">
                           <span className="font-medium">{item.product?.name}</span>
-                          <span className="text-muted-foreground ml-2">({item.product?.sku})</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <Badge variant="outline">Qty: {item.quantity}</Badge>
@@ -429,15 +556,68 @@ export default function BomsPage() {
               {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Creating BOM...
+                  {editingBom ? 'Updating BOM...' : 'Creating BOM...'}
                 </>
               ) : (
-                'Create BOM'
+                editingBom ? 'Update BOM' : 'Create BOM'
               )}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the BOM and all its component relationships.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setBomToDelete(null);
+              setDeleteConfirmOpen(false);
+            }}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete BOM
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Notification Alert */}
+      {notification && (
+        <div className="fixed top-4 right-4 z-50 w-96">
+          <Alert variant={notification.type === 'error' ? 'destructive' : 'default'}>
+            {notification.type === 'success' ? (
+              <CheckCircle className="h-4 w-4" />
+            ) : (
+              <AlertCircle className="h-4 w-4" />
+            )}
+            <AlertTitle>{notification.title}</AlertTitle>
+            <AlertDescription className="flex items-start justify-between">
+              <span>{notification.message}</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setNotification(null)}
+                className="ml-2 h-6 w-6 p-0"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </AlertDescription>
+          </Alert>
+        </div>
+      )}
+
+      </div>
+    </Sidebar>
   );
 }

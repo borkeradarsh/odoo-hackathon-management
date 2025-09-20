@@ -22,6 +22,14 @@ export async function PUT(
     const { id } = params;
     const body = await request.json();
 
+    // Validate type field if provided
+    if (body.type && !['Raw Material', 'Finished Good'].includes(body.type)) {
+      return NextResponse.json(
+        { error: 'Type must be either "Raw Material" or "Finished Good"' },
+        { status: 400 }
+      );
+    }
+
     // Check if product exists
     const { data: existingProduct, error: fetchError } = await supabase
       .from('products')
@@ -36,16 +44,17 @@ export async function PUT(
       );
     }
 
-    // Prepare update data
-    const updateData = {
-      ...body,
-      updated_at: new Date().toISOString(),
-    };
-
-    // Remove fields that shouldn't be updated
-    delete updateData.id;
-    delete updateData.created_at;
-    delete updateData.created_by;
+    // Prepare update data - only allow specific fields
+    const updateData: Partial<{
+      name: string;
+      type: string;
+      stock_on_hand: number;
+      min_stock_level: number;
+    }> = {};
+    if (body.name !== undefined) updateData.name = body.name;
+    if (body.type !== undefined) updateData.type = body.type;
+    if (body.stock_on_hand !== undefined) updateData.stock_on_hand = body.stock_on_hand;
+    if (body.min_stock_level !== undefined) updateData.min_stock_level = body.min_stock_level;
 
     const { data: product, error } = await supabase
       .from('products')
@@ -60,7 +69,7 @@ export async function PUT(
       // Handle unique constraint violations
       if (error.code === '23505') {
         return NextResponse.json(
-          { error: 'Product SKU already exists' },
+          { error: 'Product name already exists' },
           { status: 409 }
         );
       }

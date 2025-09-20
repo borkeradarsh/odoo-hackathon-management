@@ -16,42 +16,30 @@ export interface UserProfile {
 
 // Product
 export interface Product {
-  id: string
+  id: number
   name: string
-  sku: string
-  description: string | null
-  unit_of_measure: string
-  cost_price: number
-  selling_price: number | null
-  current_stock: number
-  minimum_stock: number
+  type: 'Raw Material' | 'Finished Good'
+  stock_on_hand: number
   created_at: string
-  updated_at: string
-  created_by: string
+  min_stock_level: number
 }
 
 // Bill of Materials (BOM)
 export interface BOM {
   id: string
   product_id: string
-  version: string
-  is_active: boolean
-  quantity: number
   created_at: string
-  updated_at: string
-  created_by: string
   // Relations
   product?: Product
-  bom_lines?: BOMLine[]
+  bom_items?: BOMLine[]
 }
 
 // BOM Line (Components needed for a product)
 export interface BOMLine {
   id: string
   bom_id: string
-  component_id: string
-  quantity_needed: number
-  created_at: string
+  product_id: string // CORRECTED: from component_id to product_id
+  quantity: number // CORRECTED: from quantity_needed to quantity
   // Relations
   bom?: BOM
   component?: Product
@@ -59,46 +47,28 @@ export interface BOMLine {
 
 // Manufacturing Order
 export interface ManufacturingOrder {
-  id: string
-  product_id: string
-  bom_id: string
+  id: number
+  product_id: number
+  bom_id: number
   quantity_to_produce: number
-  quantity_produced: number
   status: ManufacturingOrderStatus
-  scheduled_start_date: string | null
-  actual_start_date: string | null
-  scheduled_end_date: string | null
-  actual_end_date: string | null
-  notes: string | null
   created_at: string
-  updated_at: string
-  created_by: string
   // Relations
   product?: Product
   bom?: BOM
   work_orders?: WorkOrder[]
-  creator?: UserProfile
 }
 
 // Work Order (Individual tasks within a Manufacturing Order)
 export interface WorkOrder {
-  id: string
-  manufacturing_order_id: string
-  sequence: number
+  id: number
+  mo_id: number
   name: string
-  description: string | null
   status: WorkOrderStatus
-  estimated_duration_minutes: number | null
-  actual_duration_minutes: number | null
-  assigned_to: string | null
-  started_at: string | null
-  completed_at: string | null
-  notes: string | null
+  quantity_required?: number
   created_at: string
-  updated_at: string
   // Relations
   manufacturing_order?: ManufacturingOrder
-  assigned_user?: UserProfile
 }
 
 // Stock Ledger (Audit trail for inventory changes)
@@ -131,7 +101,6 @@ export interface CreateProductForm {
   name: string
   sku: string
   description?: string
-  unit_of_measure: string
   cost_price: number
   selling_price?: number
   current_stock: number
@@ -142,12 +111,12 @@ export interface CreateBOMForm {
   product_id: string
   version: string
   quantity: number
-  bom_lines: CreateBOMLineForm[]
+  bom_items: CreateBOMLineForm[]
 }
 
 export interface CreateBOMLineForm {
-  component_id: string
-  quantity_needed: number
+  product_id: string // CORRECTED: from component_id to product_id  
+  quantity: number // CORRECTED: from quantity_needed to quantity
 }
 
 export interface CreateManufacturingOrderForm {
@@ -196,10 +165,10 @@ export interface Database {
         Insert: Omit<BOM, 'id' | 'created_at' | 'updated_at'>
         Update: Partial<Omit<BOM, 'id' | 'created_at' | 'updated_at'>>
       }
-      bom_lines: {
+      bom_items: {
         Row: BOMLine
-        Insert: Omit<BOMLine, 'id' | 'created_at'>
-        Update: Partial<Omit<BOMLine, 'id' | 'created_at'>>
+        Insert: Omit<BOMLine, 'id'>
+        Update: Partial<Omit<BOMLine, 'id'>>
       }
       manufacturing_orders: {
         Row: ManufacturingOrder

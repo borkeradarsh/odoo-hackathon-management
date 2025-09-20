@@ -2,7 +2,23 @@
  * API Testing Examples
  * 
  * This file demonstrates how to use the Product and BOM API functions.
- * These examples can be used in your frontend components or for testing.
+ * These examples can be used in your frontend compo      // 3. Create BOM for the assembly
+      const bom = await bomApi.createBom({
+        product_id: assembly.product.id.toString(),
+        version: '1.0',
+        is_active: true,
+        quantity: 1,
+        items: [
+          {
+            product_id: bolt.product.id.toString(),
+            quantity: 1,
+          },
+          {
+            product_id: washer.product.id.toString(),
+            quantity: 2,
+          }
+        ]
+      });ing.
  */
 
 import { productApi, bomApi, CreateBomRequest } from '@/lib/api';
@@ -26,13 +42,9 @@ export const productExamples = {
     try {
       const productData = {
         name: 'Steel Bolt M8x20',
-        sku: 'BOLT-M8-20',
-        description: 'High-strength steel bolt, M8 thread, 20mm length',
-        unit_of_measure: 'piece',
-        cost_price: 0.25,
-        selling_price: 0.50,
-        current_stock: 1000,
-        minimum_stock: 100,
+        type: 'Raw Material' as const,
+        stock_on_hand: 1000,
+        min_stock_level: 100,
       };
 
       const { product } = await productApi.createProduct(productData);
@@ -48,8 +60,8 @@ export const productExamples = {
   async updateExistingProduct(productId: string) {
     try {
       const updateData = {
-        current_stock: 950,
-        selling_price: 0.55,
+        stock_on_hand: 950,
+        min_stock_level: 150,
       };
 
       const { product } = await productApi.updateProduct(productId, updateData);
@@ -80,10 +92,8 @@ export const bomExamples = {
   async createNewBom(productId: string, componentIds: string[]) {
     try {
       const bomData: CreateBomRequest = {
+        name: 'BOM for Product Assembly', // Example name
         product_id: productId,
-        version: '1.0',
-        is_active: true,
-        quantity: 1,
         items: [
           {
             product_id: componentIds[0],
@@ -142,51 +152,37 @@ export const workflowExample = {
       // 1. Create raw materials (components)
       const bolt = await productApi.createProduct({
         name: 'Steel Bolt M8x20',
-        sku: 'BOLT-M8-20',
-        description: 'High-strength steel bolt',
-        unit_of_measure: 'piece',
-        cost_price: 0.25,
-        selling_price: 0.50,
-        current_stock: 1000,
-        minimum_stock: 100,
+        type: 'Raw Material' as const,
+        stock_on_hand: 1000,
+        min_stock_level: 100,
       });
 
       const washer = await productApi.createProduct({
         name: 'Steel Washer M8',
-        sku: 'WASHER-M8',
-        description: 'Steel washer for M8 bolts',
-        unit_of_measure: 'piece',
-        cost_price: 0.05,
-        selling_price: 0.10,
-        current_stock: 2000,
-        minimum_stock: 200,
+        type: 'Raw Material' as const,
+        stock_on_hand: 2000,
+        min_stock_level: 200,
       });
 
       // 2. Create finished product
       const assembly = await productApi.createProduct({
         name: 'Bolt Assembly M8',
-        sku: 'ASSEMBLY-M8',
-        description: 'Complete bolt assembly with washers',
-        unit_of_measure: 'set',
-        cost_price: 1.10,
-        selling_price: 2.00,
-        current_stock: 0,
-        minimum_stock: 50,
+        type: 'Finished Good' as const,
+        stock_on_hand: 0,
+        min_stock_level: 50,
       });
 
       // 3. Create BOM for the assembly
       const bom = await bomApi.createBom({
-        product_id: assembly.product.id,
-        version: '1.0',
-        is_active: true,
-        quantity: 1,
+        name: assembly.product.name, // Use the assembly product name as BOM name
+        product_id: assembly.product.id.toString(),
         items: [
           {
-            product_id: bolt.product.id,
+            product_id: bolt.product.id.toString(),
             quantity: 1,
           },
           {
-            product_id: washer.product.id,
+            product_id: washer.product.id.toString(),
             quantity: 2,
           },
         ],

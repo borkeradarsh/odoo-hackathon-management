@@ -24,13 +24,23 @@ export const productApi = {
   },
 
   // Create a new product
-  async createProduct(productData: Omit<Product, 'id' | 'created_at' | 'updated_at' | 'created_by'>): Promise<{ product: Product }> {
+  async createProduct(productData: Omit<Product, 'id' | 'created_at'>): Promise<{ product: Product }> {
+    // Create a clean copy of the data to avoid circular references
+    const cleanData = {
+      name: productData.name,
+      type: productData.type,
+      stock_on_hand: Number(productData.stock_on_hand),
+      min_stock_level: Number(productData.min_stock_level),
+    };
+    
+    console.log('API: Sending clean data:', cleanData);
+    
     const response = await fetch(`${API_BASE_URL}/api/products`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(productData),
+      body: JSON.stringify(cleanData),
     });
 
     if (!response.ok) {
@@ -42,7 +52,7 @@ export const productApi = {
   },
 
   // Update a product
-  async updateProduct(productId: string, productData: Partial<Omit<Product, 'id' | 'created_at' | 'created_by'>>): Promise<{ product: Product }> {
+  async updateProduct(productId: string, productData: Partial<Omit<Product, 'id' | 'created_at'>>): Promise<{ product: Product }> {
     const response = await fetch(`${API_BASE_URL}/api/products/${productId}`, {
       method: 'PUT',
       headers: {

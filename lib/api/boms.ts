@@ -6,34 +6,27 @@ const API_BASE_URL = process.env.NODE_ENV === 'production'
 
 // BOM Data Types for API
 export interface CreateBomRequest {
-  name?: string; // Optional name field (not in DB schema but might be useful)
+  name: string;
   product_id: string;
-  version?: string;
-  is_active?: boolean;
-  quantity?: number;
   items: {
     product_id: string;
     quantity: number;
   }[];
 }
 
-export interface BomWithRelations extends Omit<BOM, 'product' | 'bom_lines'> {
+export interface BomWithRelations extends Omit<BOM, 'product' | 'bom_items'> {
   product: {
     id: string;
     name: string;
-    sku: string;
   };
-  bom_lines: Array<{
+  bom_items: Array<{
     id: string;
     bom_id: string;
-    component_id: string;
-    quantity_needed: number;
-    created_at: string;
+    product_id: string; // CORRECTED: from component_id to product_id
+    quantity: number; // CORRECTED: from quantity_needed to quantity
     component: {
       id: string;
       name: string;
-      sku: string;
-      unit_of_measure: string;
     };
   }>;
 }
@@ -93,7 +86,7 @@ export const bomApi = {
   },
 
   // Update a BOM (basic fields only)
-  async updateBom(bomId: string, bomData: { version?: string; is_active?: boolean; quantity?: number }): Promise<{ bom: BomWithRelations }> {
+  async updateBom(bomId: string, bomData: { version?: string }): Promise<{ bom: BomWithRelations }> {
     const response = await fetch(`${API_BASE_URL}/api/boms/${bomId}`, {
       method: 'PUT',
       headers: {

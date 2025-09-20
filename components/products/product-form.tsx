@@ -88,7 +88,7 @@ export default function ProductForm(props: ProductFormProps) {
 
   return (
     <div className="max-w-2xl mx-auto w-full py-8">
-  <h1 className="text-2xl font-extrabold mb-6 text-teal-900 drop-shadow-lg">{isEditing ? 'Edit Product' : 'Add Product'}</h1>
+  {/* <h1 className="text-2xl font-extrabold mb-6 text-teal-900 drop-shadow-lg">{isEditing ? 'Edit Product' : 'Add Product'}</h1> */}
       <Dialog open={open} onOpenChange={onOpenChange}>
   <DialogContent className="sm:max-w-[600px] bg-sidebar-accent border-sidebar-border rounded-2xl shadow-xl text-teal-900">
           <DialogHeader>

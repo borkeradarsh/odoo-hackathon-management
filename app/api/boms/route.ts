@@ -10,10 +10,10 @@ export async function GET() {
       .from('boms')
       .select(`
         *,
-        product:products(id, name, sku),
-        bom_lines:bom_lines(
+        product:products(id, name),
+        bom_items:bom_items(
           *,
-          component:products(id, name, sku, unit_of_measure)
+          component:products(id, name)
         )
       `)
       .order('created_at', { ascending: false });
@@ -82,16 +82,16 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    console.log('BOM creation request body:', body);
+
     // Start transaction by creating BOM first
     const bomData = {
+      name: body.name,
       product_id: body.product_id,
-      version: body.version || '1.0',
-      is_active: body.is_active !== undefined ? body.is_active : true,
-      quantity: body.quantity || 1,
-      created_by: user.id,
       created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
     };
+
+    console.log('Creating BOM with data:', bomData);
 
     const { data: bom, error: bomError } = await supabase
       .from('boms')
@@ -119,17 +119,16 @@ export async function POST(request: NextRequest) {
     // Create BOM lines
     const bomLines = body.items.map((item: { product_id: string; quantity: number }) => ({
       bom_id: bom.id,
-      component_id: item.product_id,
-      quantity_needed: item.quantity,
-      created_at: new Date().toISOString(),
+      product_id: item.product_id, // CORRECTED: from component_id to product_id
+      quantity: item.quantity, // CORRECTED: from quantity_needed to quantity
     }));
 
     const { error: bomLinesError } = await supabase
-      .from('bom_lines')
+      .from('bom_items')
       .insert(bomLines)
       .select(`
         *,
-        component:products(id, name, sku, unit_of_measure)
+        component:products(id, name)
       `);
 
     if (bomLinesError) {
@@ -157,10 +156,10 @@ export async function POST(request: NextRequest) {
       .from('boms')
       .select(`
         *,
-        product:products(id, name, sku),
-        bom_lines:bom_lines(
+        product:products(id, name),
+        bom_items:bom_items(
           *,
-          component:products(id, name, sku, unit_of_measure)
+          component:products(id, name)
         )
       `)
       .eq('id', bom.id)

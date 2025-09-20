@@ -1,5 +1,18 @@
 // in lib/data.ts
 import { createServer } from '@/lib/supabase/server';
+import { z } from 'zod';
+
+// Define a schema for validation
+const bomItemSchema = z.object({
+  product_id: z.number(),
+  quantity: z.number().min(1),
+});
+
+const createBomSchema = z.object({
+  name: z.string().min(3),
+  product_id: z.number(),
+  items: z.array(bomItemSchema).min(1),
+});
 
 export async function getDashboardAnalytics() {
   const supabase = await createServer();
@@ -135,4 +148,46 @@ async function getFallbackDashboardAnalytics(supabase: Awaited<ReturnType<typeof
       }
     };
   }
+}
+
+export async function createBom(bomData: unknown) {
+  const validation = createBomSchema.safeParse(bomData);
+  if (!validation.success) {
+    throw new Error(`Invalid BOM data: ${validation.error.message}`);
+  }
+  const { name, product_id, items } = validation.data;
+
+  const supabase = await createServer();
+
+  // 1. Create the main BOM record
+  const { data: newBom, error: bomError } = await supabase
+    .from('boms')
+    .insert({ name, product_id })
+    .select()
+    .single();
+
+  if (bomError) {
+    console.error('Error creating BOM:', bomError);
+    throw new Error('Failed to create BOM.');
+  }
+
+  // 2. Prepare and insert the BOM item lines
+  // THIS IS THE FIX: We are now creating a new object with ONLY the required columns.
+  const bomLinesData = items.map(item => ({
+    bom_id: newBom.id,
+    product_id: item.product_id,
+    quantity: item.quantity,
+  }));
+
+  const { error: linesError } = await supabase
+    .from('bom_items')
+    .insert(bomLinesData);
+
+  if (linesError) {
+    console.error('Error creating BOM lines:', linesError);
+    await supabase.from('boms').delete().eq('id', newBom.id); // Clean up failed BOM
+    throw new Error('Failed to create BOM lines.');
+  }
+
+  return newBom;
 }

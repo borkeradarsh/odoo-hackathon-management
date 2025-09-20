@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     
     // Validate required fields
-    const requiredFields = ['name', 'sku', 'unit_of_measure', 'cost_price'];
+    const requiredFields = ['name', 'type'];
     for (const field of requiredFields) {
       if (!body[field]) {
         return NextResponse.json(
@@ -57,14 +57,20 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Prepare product data
+    // Validate type field
+    if (!['Raw Material', 'Finished Good'].includes(body.type)) {
+      return NextResponse.json(
+        { error: 'Type must be either "Raw Material" or "Finished Good"' },
+        { status: 400 }
+      );
+    }
+
+    // Prepare product data - ensure clean data types
     const productData = {
-      ...body,
-      created_by: user.id,
-      current_stock: body.current_stock || 0,
-      minimum_stock: body.minimum_stock || 0,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      name: String(body.name).trim(),
+      type: String(body.type),
+      stock_on_hand: parseInt(body.stock_on_hand) || 0,
+      min_stock_level: parseInt(body.min_stock_level) || 10,
     };
 
     const { data: product, error } = await supabase
@@ -74,18 +80,18 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) {
-      console.error('Error creating product:', error);
+      console.error('Supabase error:', error.code, error.message);
       
       // Handle unique constraint violations
       if (error.code === '23505') {
         return NextResponse.json(
-          { error: 'Product SKU already exists' },
+          { error: 'Product name already exists' },
           { status: 409 }
         );
       }
       
       return NextResponse.json(
-        { error: 'Failed to create product' },
+        { error: `Database error: ${error.message}` },
         { status: 500 }
       );
     }

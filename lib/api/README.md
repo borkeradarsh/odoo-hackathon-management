@@ -26,7 +26,6 @@ Fetches all products from the database.
       "name": "Product Name",
       "sku": "PRODUCT-SKU",
       "description": "Product description",
-      "unit_of_measure": "piece",
       "cost_price": 10.50,
       "selling_price": 15.00,
       "current_stock": 100,
@@ -48,7 +47,6 @@ Creates a new product.
   "name": "Steel Bolt M8x20",
   "sku": "BOLT-M8-20",
   "description": "High-strength steel bolt",
-  "unit_of_measure": "piece",
   "cost_price": 0.25,
   "selling_price": 0.50,
   "current_stock": 1000,
@@ -107,8 +105,7 @@ Fetches all BOMs with product and component information.
           "component": {
             "id": "uuid",
             "name": "Component",
-            "sku": "COMP-001",
-            "unit_of_measure": "piece"
+            "sku": "COMP-001"
           }
         }
       ]
@@ -249,7 +246,6 @@ The API functions assume the following database structure:
 - `name` (text, required)
 - `sku` (text, unique, required)
 - `description` (text, optional)
-- `unit_of_measure` (text, required)
 - `cost_price` (numeric, required)
 - `selling_price` (numeric, optional)
 - `current_stock` (numeric, default 0)

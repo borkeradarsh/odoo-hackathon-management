@@ -14,10 +14,10 @@ export async function GET(
       .from('boms')
       .select(`
         *,
-        product:products(id, name, sku),
-        bom_lines:bom_lines(
+        product:products(id, name),
+        bom_items:bom_items(
           *,
-          component:products(id, name, sku, unit_of_measure)
+          component:products(id, name)
         )
       `)
       .eq('id', id)
@@ -68,7 +68,6 @@ export async function PUT(
     }
 
     const { id } = params;
-    const body = await request.json();
 
     // Check if BOM exists
     const { data: existingBom, error: fetchError } = await supabase
@@ -84,39 +83,25 @@ export async function PUT(
       );
     }
 
-    // Prepare update data (basic BOM fields only)
-    const updateData = {
-      version: body.version,
-      is_active: body.is_active,
-      quantity: body.quantity,
-      updated_at: new Date().toISOString(),
-    };
-
-    // Remove undefined fields
-    Object.keys(updateData).forEach(key => {
-      if (updateData[key as keyof typeof updateData] === undefined) {
-        delete updateData[key as keyof typeof updateData];
-      }
-    });
-
+    // For now, just return the BOM since there are no updatable fields
+    // In a real implementation, this would handle BOM item updates
     const { data: bom, error } = await supabase
       .from('boms')
-      .update(updateData)
-      .eq('id', id)
       .select(`
         *,
-        product:products(id, name, sku),
-        bom_lines:bom_lines(
+        product:products(id, name),
+        bom_items:bom_items(
           *,
-          component:products(id, name, sku, unit_of_measure)
+          component:products(id, name)
         )
       `)
+      .eq('id', id)
       .single();
 
     if (error) {
-      console.error('Error updating BOM:', error);
+      console.error('Error fetching BOM:', error);
       return NextResponse.json(
-        { error: 'Failed to update BOM' },
+        { error: 'Failed to fetch BOM' },
         { status: 500 }
       );
     }
@@ -165,16 +150,16 @@ export async function DELETE(
       );
     }
 
-    // Delete BOM lines first (due to foreign key constraints)
-    const { error: bomLinesError } = await supabase
-      .from('bom_lines')
+    // Delete BOM items first (due to foreign key constraints)
+    const { error: bomItemsError } = await supabase
+      .from('bom_items')
       .delete()
       .eq('bom_id', id);
 
-    if (bomLinesError) {
-      console.error('Error deleting BOM lines:', bomLinesError);
+    if (bomItemsError) {
+      console.error('Error deleting BOM items:', bomItemsError);
       return NextResponse.json(
-        { error: 'Failed to delete BOM lines' },
+        { error: 'Failed to delete BOM items' },
         { status: 500 }
       );
     }

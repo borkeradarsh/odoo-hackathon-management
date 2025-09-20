@@ -46,7 +46,7 @@ const navItems: NavItem[] = [
   },
   {
     title: 'Manufacturing Orders',
-    href: '/manufacturing-orders',
+    href: '/manufacturing',
     icon: ClipboardList,
   },
   {
@@ -134,7 +134,6 @@ export function Sidebar({ children }: SidebarProps) {
                 <User className="w-5 h-5 text-sidebar-primary" />
               </div>
               <div className="flex-1 min-w-0">
-<<<<<<< HEAD
                 <p className="text-sm font-medium text-gray-900 truncate">
                   {profile?.full_name || user?.email || 'User'}
                 </p>
@@ -144,17 +143,6 @@ export function Sidebar({ children }: SidebarProps) {
                     className="text-xs"
                   >
                     {profile?.role === 'admin' ? 'Administrator' : 'Operator'}
-=======
-                <p className="text-base font-semibold text-sidebar-primary truncate">
-                  {userProfile?.full_name || userProfile?.email || 'User'}
-                </p>
-                <div className="flex items-center space-x-2">
-                  <Badge 
-                    variant={userProfile?.app_role === 'admin' ? 'default' : 'secondary'}
-                    className="text-xs bg-sidebar-primary text-sidebar-primary-foreground border-none px-2 py-0.5 rounded-full shadow"
-                  >
-                    {userProfile?.app_role === 'admin' ? 'admin' : 'operator'}
->>>>>>> 9ae20797b945a35548887629a67594d7e1ef5a3a
                   </Badge>
                 </div>
               </div>

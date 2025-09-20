@@ -24,7 +24,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import ProductForm from '@/components/products/product-form';
+import { ProductForm } from '@/components/products/ProductForm';
 import { Product } from '@/types';
 import { productApi } from '@/lib/api';
 import { Sidebar } from '@/components/layout/sidebar';
@@ -32,12 +32,9 @@ import { Sidebar } from '@/components/layout/sidebar';
 // Form data type for product creation/update
 type ProductFormData = {
   name: string;
-  sku: string;
-  description?: string | null;
-  cost_price: number;
-  selling_price?: number | null;
-  current_stock?: number;
-  minimum_stock?: number;
+  type: 'Raw Material' | 'Finished Good';
+  stock_on_hand: number;
+  min_stock_level: number;
 };
 
 // Fetcher function for SWR
@@ -53,7 +50,6 @@ export default function ProductsPage() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
   // Fetch products using SWR
@@ -67,25 +63,15 @@ export default function ProductsPage() {
 
   // Handle form submission for create/update
   const handleFormSubmit = async (formData: ProductFormData) => {
-    setIsSubmitting(true);
     try {
-      // Transform form data to match API expectations
-      const apiData = {
-        ...formData,
-        description: formData.description || null,
-        selling_price: formData.selling_price || null,
-        current_stock: formData.current_stock || 0,
-        minimum_stock: formData.minimum_stock || 0,
-      };
-
+      console.log('Form data being submitted:', formData);
+      
       if (editingProduct) {
         // Update existing product
-        await productApi.updateProduct(editingProduct.id, apiData);
-        alert('Product updated successfully!');
+        await productApi.updateProduct(editingProduct.id.toString(), formData);
       } else {
         // Create new product
-        await productApi.createProduct(apiData);
-        alert('Product created successfully!');
+        await productApi.createProduct(formData);
       }
       
       // Refresh the data
@@ -95,10 +81,8 @@ export default function ProductsPage() {
       setEditingProduct(null);
       setFormOpen(false);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
-      alert(`Error: ${errorMessage}`);
-    } finally {
-      setIsSubmitting(false);
+      console.error('Form submission error:', error);
+      throw error; // Re-throw so the form can handle it
     }
   };
 
@@ -108,7 +92,7 @@ export default function ProductsPage() {
     
     setIsDeleting(true);
     try {
-      await productApi.deleteProduct(productToDelete.id);
+      await productApi.deleteProduct(productToDelete.id.toString());
       alert('Product deleted successfully!');
       
       // Refresh the data
@@ -221,10 +205,9 @@ export default function ProductsPage() {
                 <TableHeader>
                   <TableRow className="bg-sidebar-accent">
                     <TableHead className="text-sidebar-primary font-bold">Name</TableHead>
-                    <TableHead className="text-sidebar-primary font-bold">SKU</TableHead>
-                    <TableHead className="text-sidebar-primary font-bold">Cost Price</TableHead>
-                    <TableHead className="text-sidebar-primary font-bold">Selling Price</TableHead>
-                    <TableHead className="text-sidebar-primary font-bold">Stock</TableHead>
+                    <TableHead className="text-sidebar-primary font-bold">Type</TableHead>
+                    <TableHead className="text-sidebar-primary font-bold">Stock on Hand</TableHead>
+                    <TableHead className="text-sidebar-primary font-bold">Min Stock Level</TableHead>
                     <TableHead className="text-sidebar-primary font-bold">Status</TableHead>
                     <TableHead className="text-right text-sidebar-primary font-bold">Actions</TableHead>
                   </TableRow>
@@ -233,17 +216,15 @@ export default function ProductsPage() {
                   {products.map((product) => (
                     <TableRow key={product.id} className="bg-sidebar-accent hover:bg-sidebar-ring/20 rounded-lg">
                       <TableCell className="font-semibold text-sidebar-primary-foreground">{product.name}</TableCell>
-                      <TableCell className="text-sidebar-primary-foreground">{product.sku}</TableCell>
-                      <TableCell className="text-sidebar-primary-foreground">${product.cost_price.toFixed(2)}</TableCell>
                       <TableCell className="text-sidebar-primary-foreground">
-                        {product.selling_price 
-                          ? `$${product.selling_price.toFixed(2)}` 
-                          : 'N/A'
-                        }
+                        <Badge variant={product.type === 'Raw Material' ? 'secondary' : 'default'}>
+                          {product.type}
+                        </Badge>
                       </TableCell>
-                      <TableCell className="text-sidebar-primary-foreground">{product.current_stock}</TableCell>
+                      <TableCell className="text-sidebar-primary-foreground">{product.stock_on_hand}</TableCell>
+                      <TableCell className="text-sidebar-primary-foreground">{product.min_stock_level}</TableCell>
                       <TableCell>
-                        {getStockStatus(product.current_stock, product.minimum_stock)}
+                        {getStockStatus(product.stock_on_hand, product.min_stock_level)}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
@@ -275,11 +256,10 @@ export default function ProductsPage() {
 
         {/* Product Form Dialog */}
         <ProductForm
-          product={editingProduct}
+          initialData={editingProduct}
           open={formOpen}
           onOpenChange={handleFormClose}
           onSubmit={handleFormSubmit}
-          isLoading={isSubmitting}
         />
 
         {/* Delete Confirmation Dialog */}
