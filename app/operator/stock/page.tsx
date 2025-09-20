@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import useSWR from 'swr';
 import { ProtectedRoute } from '@/components/auth/protected-route';
 import { Sidebar } from '@/components/layout/sidebar';
 import { PageHeader } from '@/components/layout/page-header';
@@ -39,43 +40,40 @@ interface Product {
   created_at: string;
 }
 
+// Fetcher function for SWR
+const fetcher = (url: string) => fetch(url).then((res) => res.json());
+
 export default function OperatorStockPage() {
-  // State for products list
-  const [products, setProducts] = useState<Product[]>([]);
-  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
+  // State for UI interactions
   const [searchTerm, setSearchTerm] = useState('');
   const [alert, setAlert] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
-  // Fetch products on mount
-  useEffect(() => {
-    fetchProducts();
-  }, []);
+  // Use SWR with disabled automatic re-fetching
+  const { 
+    data, 
+    isLoading,
+    mutate 
+  } = useSWR('/api/products', fetcher, {
+    revalidateOnFocus: false,      // Prevents re-fetching when you focus the tab
+    revalidateOnReconnect: false,  // Prevents re-fetching on network reconnect
+  });
+
+  const products: Product[] = data?.data || [];
+  const loading = isLoading;
 
   // Filter products based on search term
-  useEffect(() => {
-    const filtered = products.filter(product =>
-      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.type.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-    setFilteredProducts(filtered);
-  }, [products, searchTerm]);
+  const filteredProducts = products.filter(product =>
+    product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    product.type.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
-  const fetchProducts = async () => {
+  const refreshProducts = async () => {
     try {
-      setLoading(true);
-      const response = await fetch('/api/products');
-      if (response.ok) {
-        const data = await response.json();
-        setProducts(data.data || []);
-      } else {
-        setAlert({ type: 'error', message: 'Failed to load stock information' });
-      }
+      await mutate();
+      setAlert({ type: 'success', message: 'Stock information refreshed' });
     } catch (error) {
-      console.error('Error fetching products:', error);
-      setAlert({ type: 'error', message: 'Failed to load stock information' });
-    } finally {
-      setLoading(false);
+      console.error('Error refreshing products:', error);
+      setAlert({ type: 'error', message: 'Failed to refresh stock information' });
     }
   };
 
@@ -121,7 +119,7 @@ export default function OperatorStockPage() {
               description="View current inventory levels and stock status (Read-only)"
             />
             <Button 
-              onClick={fetchProducts}
+              onClick={refreshProducts}
               variant="outline"
               disabled={loading}
             >

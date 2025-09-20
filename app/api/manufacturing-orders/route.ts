@@ -72,7 +72,8 @@ export async function POST(request: NextRequest) {
     // Call the PostgreSQL function to create the Manufacturing Order
     const { data, error } = await supabase.rpc('create_manufacturing_order', {
       product_id_to_create: product_id,
-      quantity_to_produce: quantity
+      quantity_to_produce: quantity,
+      assignee_id: assignee_id
     });
 
     if (error) {

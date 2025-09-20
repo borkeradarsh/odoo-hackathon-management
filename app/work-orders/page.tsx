@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import useSWR from 'swr';
 import { ProtectedRoute } from '@/components/auth/protected-route';
 import { Sidebar } from '@/components/layout/sidebar';
 import { PageHeader } from '@/components/layout/page-header';
@@ -42,11 +43,25 @@ interface OperatorAnalytics {
   completed: number;
 }
 
+// Fetcher function for SWR
+const fetcher = (url: string) => fetch(url).then((res) => res.json());
+
 export default function WorkOrdersPage() {
-  // State for work orders list
-  const [workOrders, setWorkOrders] = useState<WorkOrderWithOperator[]>([]);
-  const [loading, setLoading] = useState(true);
+  // State for UI interactions
   const [alert, setAlert] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  
+  // Use SWR for work orders data
+  const { 
+    data, 
+    isLoading,
+    mutate 
+  } = useSWR('/api/work-orders', fetcher, {
+    revalidateOnFocus: false,      // Prevents re-fetching when you focus the tab
+    revalidateOnReconnect: false,  // Prevents re-fetching on network reconnect
+  });
+
+  const workOrders: WorkOrderWithOperator[] = data?.data || [];
+  const loading = isLoading;
   
   // State for operator analytics dialog
   const [selectedOperator, setSelectedOperator] = useState<{ id: string; name: string } | null>(null);
@@ -54,27 +69,14 @@ export default function WorkOrdersPage() {
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [analyticsDialogOpen, setAnalyticsDialogOpen] = useState(false);
 
-  // Fetch work orders on mount
-  useEffect(() => {
-    fetchWorkOrders();
-  }, []);
-
-  const fetchWorkOrders = async () => {
+  // Function to refresh work orders
+  const refreshWorkOrders = async () => {
     try {
-      setLoading(true);
-      const response = await fetch('/api/work-orders');
-      
-      if (response.ok) {
-        const result = await response.json();
-        setWorkOrders(result.data || []);
-      } else {
-        setAlert({ type: 'error', message: 'Failed to load work orders' });
-      }
+      await mutate();
+      setAlert({ type: 'success', message: 'Work orders refreshed' });
     } catch (error) {
-      console.error('Error fetching work orders:', error);
-      setAlert({ type: 'error', message: 'Failed to load work orders' });
-    } finally {
-      setLoading(false);
+      console.error('Error refreshing work orders:', error);
+      setAlert({ type: 'error', message: 'Failed to refresh work orders' });
     }
   };
 
@@ -141,7 +143,7 @@ export default function WorkOrdersPage() {
               description="Manage production work orders and track operator assignments"
             />
             <Button 
-              onClick={fetchWorkOrders}
+              onClick={refreshWorkOrders}
               variant="outline"
               disabled={loading}
             >
@@ -181,16 +183,16 @@ export default function WorkOrdersPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>WO #</TableHead>
-                      <TableHead>Name</TableHead>
+                      <TableHead>Product</TableHead>
                       <TableHead>MO #</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead>Quantity</TableHead>
+                      <TableHead>Type</TableHead>
                       <TableHead>Assigned Operator</TableHead>
                       <TableHead>Created</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {workOrders.map((wo) => {
+                    {workOrders.map((wo: WorkOrderWithOperator) => {
                       const StatusIcon = getStatusIcon(wo.status);
                       return (
                         <TableRow key={wo.id}>
@@ -199,9 +201,11 @@ export default function WorkOrdersPage() {
                           </TableCell>
                           <TableCell>
                             <div>
-                              <div className="font-medium">{wo.name}</div>
+                              <div className="font-medium">
+                                {wo.finished_product_name || wo.name}
+                              </div>
                               <div className="text-sm text-muted-foreground">
-                                Required: {wo.required_quantity} | Completed: {wo.completed_quantity}
+                                {wo.finished_product_name ? 'Finished Product' : 'Work Order Details'}
                               </div>
                             </div>
                           </TableCell>
@@ -215,21 +219,23 @@ export default function WorkOrdersPage() {
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            {wo.completed_quantity} / {wo.required_quantity}
+                            <Badge variant="outline">
+                              Work Order
+                            </Badge>
                           </TableCell>
                           <TableCell>
-                            {wo.operator_full_name ? (
+                            {wo.profiles?.full_name ? (
                               <Button
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => handleOperatorClick({ 
                                   id: wo.assignee_id!, 
-                                  full_name: wo.operator_full_name! 
+                                  full_name: wo.profiles?.full_name || '' 
                                 })}
                                 className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 p-1 h-auto"
                               >
                                 <User className="h-4 w-4 mr-1" />
-                                {wo.operator_full_name}
+                                {wo.profiles.full_name}
                               </Button>
                             ) : (
                               <span className="text-muted-foreground">Unassigned</span>

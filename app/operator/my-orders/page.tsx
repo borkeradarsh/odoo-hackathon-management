@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import useSWR from 'swr';
 import { ProtectedRoute } from '@/components/auth/protected-route';
 import { Sidebar } from '@/components/layout/sidebar';
 import { PageHeader } from '@/components/layout/page-header';
@@ -39,50 +40,33 @@ interface WorkOrder {
   };
 }
 
+// Fetcher function for SWR
+const fetcher = (url: string) => fetch(url).then((res) => res.json());
+
 export default function MyOrdersPage() {
-  // State for work orders list
-  const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
-  const [loading, setLoading] = useState(true);
+  // State for alerts and actions
   const [alert, setAlert] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
-  // Fetch work orders on mount
-  useEffect(() => {
-    const fetchMyWorkOrders = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch('/api/my-work-orders');
-        if (response.ok) {
-          const data = await response.json();
-          setWorkOrders(data.data || []);
-        } else {
-          setAlert({ type: 'error', message: 'Failed to load your work orders' });
-        }
-      } catch (error) {
-        console.error('Error fetching work orders:', error);
-        setAlert({ type: 'error', message: 'Failed to load your work orders' });
-      } finally {
-        setLoading(false);
-      }
-    };
+  // Use SWR with disabled automatic re-fetching
+  const { 
+    data, 
+    isLoading,
+    mutate 
+  } = useSWR('/api/my-work-orders', fetcher, {
+    revalidateOnFocus: false,      // Prevents re-fetching when you focus the tab
+    revalidateOnReconnect: false,  // Prevents re-fetching on network reconnect
+  });
 
-    fetchMyWorkOrders();
-  }, []);
+  const workOrders: WorkOrder[] = data?.data || [];
+  const loading = isLoading;
 
   const refreshWorkOrders = async () => {
     try {
-      setLoading(true);
-      const response = await fetch('/api/my-work-orders');
-      if (response.ok) {
-        const data = await response.json();
-        setWorkOrders(data.data || []);
-      } else {
-        setAlert({ type: 'error', message: 'Failed to load your work orders' });
-      }
+      await mutate();
+      setAlert({ type: 'success', message: 'Work orders refreshed' });
     } catch (error) {
-      console.error('Error fetching work orders:', error);
-      setAlert({ type: 'error', message: 'Failed to load your work orders' });
-    } finally {
-      setLoading(false);
+      console.error('Error refreshing work orders:', error);
+      setAlert({ type: 'error', message: 'Failed to refresh work orders' });
     }
   };
 
@@ -135,9 +119,9 @@ export default function MyOrdersPage() {
   // Calculate statistics
   const stats = {
     total: workOrders.length,
-    pending: workOrders.filter(wo => wo.status === 'pending').length,
-    in_progress: workOrders.filter(wo => wo.status === 'in_progress').length,
-    completed: workOrders.filter(wo => wo.status === 'completed').length,
+    pending: workOrders.filter((wo: WorkOrder) => wo.status === 'pending').length,
+    in_progress: workOrders.filter((wo: WorkOrder) => wo.status === 'in_progress').length,
+    completed: workOrders.filter((wo: WorkOrder) => wo.status === 'completed').length,
   };
 
   return (
@@ -244,7 +228,7 @@ export default function MyOrdersPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {workOrders.map((wo) => {
+                    {workOrders.map((wo: WorkOrder) => {
                       const StatusIcon = getStatusIcon(wo.status);
                       return (
                         <TableRow key={wo.id}>

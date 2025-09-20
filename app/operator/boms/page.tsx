@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import useSWR from 'swr';
 import { ProtectedRoute } from '@/components/auth/protected-route';
 import { Sidebar } from '@/components/layout/sidebar';
 import { PageHeader } from '@/components/layout/page-header';
@@ -50,33 +51,34 @@ interface BOM {
   bom_items?: BOMLine[];
 }
 
+// Fetcher function for SWR
+const fetcher = (url: string) => fetch(url).then((res) => res.json());
+
 export default function OperatorBOMsPage() {
-  // State for BOMs list
-  const [boms, setBoms] = useState<BOM[]>([]);
-  const [loading, setLoading] = useState(true);
+  // State for UI interactions
   const [alert, setAlert] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [expandedBOM, setExpandedBOM] = useState<string | null>(null);
 
-  // Fetch BOMs on mount
-  useEffect(() => {
-    fetchBOMs();
-  }, []);
+  // Use SWR with disabled automatic re-fetching
+  const { 
+    data, 
+    isLoading,
+    mutate 
+  } = useSWR('/api/boms', fetcher, {
+    revalidateOnFocus: false,      // Prevents re-fetching when you focus the tab
+    revalidateOnReconnect: false,  // Prevents re-fetching on network reconnect
+  });
 
-  const fetchBOMs = async () => {
+  const boms: BOM[] = data?.data || [];
+  const loading = isLoading;
+
+  const refreshBOMs = async () => {
     try {
-      setLoading(true);
-      const response = await fetch('/api/boms');
-      if (response.ok) {
-        const data = await response.json();
-        setBoms(data.data || []);
-      } else {
-        setAlert({ type: 'error', message: 'Failed to load Bills of Materials' });
-      }
+      await mutate();
+      setAlert({ type: 'success', message: 'Bills of Materials refreshed' });
     } catch (error) {
-      console.error('Error fetching BOMs:', error);
-      setAlert({ type: 'error', message: 'Failed to load Bills of Materials' });
-    } finally {
-      setLoading(false);
+      console.error('Error refreshing BOMs:', error);
+      setAlert({ type: 'error', message: 'Failed to refresh Bills of Materials' });
     }
   };
 
@@ -95,7 +97,7 @@ export default function OperatorBOMsPage() {
               description="View production recipes and component requirements (Read-only)"
             />
             <Button 
-              onClick={fetchBOMs}
+              onClick={refreshBOMs}
               variant="outline"
               disabled={loading}
             >

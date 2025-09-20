@@ -22,53 +22,8 @@ import {
 } from 'lucide-react'
 import { DashboardAnalytics } from '@/lib/api';
 
-// Cache key for localStorage
-const DASHBOARD_CACHE_KEY = 'dashboard_analytics_cache';
-const CACHE_EXPIRY_TIME = 5 * 60 * 1000; // 5 minutes
-
-// Enhanced fetcher function with caching
-const fetcher = async (url: string) => {
-  try {
-    // Check localStorage cache first
-    const cached = localStorage.getItem(DASHBOARD_CACHE_KEY);
-    if (cached) {
-      const { data, timestamp } = JSON.parse(cached);
-      const isExpired = Date.now() - timestamp > CACHE_EXPIRY_TIME;
-      
-      if (!isExpired) {
-        console.log('📦 Using cached dashboard data');
-        return data;
-      }
-    }
-
-    console.log('🌐 Fetching fresh dashboard data');
-    const res = await fetch(url);
-    
-    if (!res.ok) {
-      throw new Error('Failed to fetch');
-    }
-    
-    const result = await res.json();
-    const data = result.data || result;
-    
-    // Cache the fresh data
-    localStorage.setItem(DASHBOARD_CACHE_KEY, JSON.stringify({
-      data,
-      timestamp: Date.now()
-    }));
-    
-    return data;
-  } catch (error) {
-    // If fetch fails, try to return cached data even if expired
-    const cached = localStorage.getItem(DASHBOARD_CACHE_KEY);
-    if (cached) {
-      const { data } = JSON.parse(cached);
-      console.log('⚠️ Using expired cache due to fetch error');
-      return data;
-    }
-    throw error;
-  }
-};
+// Simple fetcher function for SWR
+const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
 // Status color mapping
 const getStatusColor = (status: string) => {
@@ -101,41 +56,23 @@ const getStockAlertColor = (current: number, minimum: number) => {
 };
 
 export default function DashboardPage() {
-  // Enhanced SWR configuration for optimal caching
+  // Simple SWR configuration without complex caching
   const { 
     data: analyticsData, 
     error, 
     isLoading,
     mutate 
   } = useSWR('/api/dashboard/analytics', fetcher, {
-    // Cache configuration
-    revalidateOnFocus: false, // Don't refetch when window gains focus
-    revalidateOnReconnect: true, // Refetch when connection is restored
-    refreshInterval: 60000, // Refresh every 60 seconds (reduced from 30)
-    dedupingInterval: 30000, // Dedupe requests within 30 seconds
-    
-    // Performance optimizations
-    errorRetryCount: 3, // Retry failed requests 3 times
-    errorRetryInterval: 5000, // Wait 5 seconds between retries
-    keepPreviousData: true, // Keep showing old data while fetching new
-    
-    // Fallback data from cache
-    fallbackData: (() => {
-      try {
-        const cached = localStorage.getItem(DASHBOARD_CACHE_KEY);
-        if (cached) {
-          const { data } = JSON.parse(cached);
-          console.log('🔄 Using fallback cache data for initial render');
-          return data;
-        }
-      } catch (error) {
-        console.warn('Failed to load cache:', error);
-      }
-      return undefined;
-    })(),
+    revalidateOnFocus: false,      // Don't refetch when window gains focus
+    revalidateOnReconnect: true,   // Refetch when connection is restored
+    refreshInterval: 60000,        // Refresh every 60 seconds
+    dedupingInterval: 30000,       // Dedupe requests within 30 seconds
+    errorRetryCount: 3,            // Retry failed requests 3 times
+    errorRetryInterval: 5000,      // Wait 5 seconds between retries
+    keepPreviousData: true,        // Keep showing old data while fetching new
   });
 
-  const analytics: DashboardAnalytics = analyticsData || {
+  const analytics: DashboardAnalytics = analyticsData?.data || analyticsData || {
     kpis: {
       total_products: 0,
       active_boms: 0,
@@ -148,41 +85,8 @@ export default function DashboardPage() {
     stockAlerts: []
   };
 
-  // Cache management functions
-  const clearCache = () => {
-    localStorage.removeItem(DASHBOARD_CACHE_KEY);
-    console.log('🗑️ Dashboard cache cleared');
-    mutate(); // Trigger fresh fetch
-  };
-
-
-
-  const handleRefreshWithCacheBust = () => {
-    clearCache();
-  };
-
   // State for UI indicators
   const [isRefreshing, setIsRefreshing] = useState(false);
-
-  // Background refresh effect
-  useEffect(() => {
-    // Preload from cache on mount
-    const cached = localStorage.getItem(DASHBOARD_CACHE_KEY);
-    if (cached) {
-      console.log('🚀 Dashboard mounted with cached data available');
-    }
-
-    // Set up periodic background refresh
-    const backgroundRefresh = setInterval(() => {
-      // Only refresh if the page is visible and user is not actively interacting
-      if (document.visibilityState === 'visible' && !isRefreshing) {
-        console.log('🔄 Background refresh triggered');
-        mutate();
-      }
-    }, 120000); // Background refresh every 2 minutes
-
-    return () => clearInterval(backgroundRefresh);
-  }, [mutate, isRefreshing]);
 
   // Handle refresh with loading state
   const handleRefreshWithLoading = async () => {
@@ -289,7 +193,7 @@ export default function DashboardPage() {
                   </Button>
                   <Button 
                     variant="outline" 
-                    onClick={handleRefreshWithCacheBust}
+                    onClick={handleRefreshWithLoading}
                     disabled={isRefreshing}
                     title="Clear cache and try again"
                   >
@@ -349,7 +253,7 @@ export default function DashboardPage() {
               <Button 
                 variant="ghost" 
                 size="sm" 
-                onClick={handleRefreshWithCacheBust}
+                onClick={handleRefreshWithLoading}
                 disabled={isLoading || isRefreshing}
                 title="Clear cache and fetch fresh data"
               >

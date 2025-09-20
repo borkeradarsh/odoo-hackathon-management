@@ -5,13 +5,23 @@ export interface WorkOrderWithOperator {
   mo_id: number;
   name: string;
   status: string;
-  required_quantity: number;
-  completed_quantity: number;
   assignee_id: string | null;
   created_at: string;
   updated_at: string;
-  operator_name: string | null;
-  operator_full_name: string | null;
+  profiles?: {
+    full_name: string;
+  } | null;
+  manufacturing_orders?: {
+    id: number;
+    product_id: number;
+    products?: {
+      id: number;
+      name: string;
+    } | null;
+  } | null;
+  operator_name?: string | null;
+  operator_full_name?: string | null;
+  finished_product_name?: string | null;
 }
 
 interface WorkOrderFromDB {
@@ -19,12 +29,18 @@ interface WorkOrderFromDB {
   mo_id: number;
   name: string;
   status: string;
-  required_quantity: number;
-  completed_quantity: number;
   assignee_id: string | null;
   created_at: string;
   updated_at: string;
-  profiles: { full_name: string }[] | null;
+  profiles?: { full_name: string } | null;
+  manufacturing_orders?: {
+    id: number;
+    product_id: number;
+    products?: {
+      id: number;
+      name: string;
+    } | null;
+  } | null;
 }
 
 /**
@@ -41,17 +57,17 @@ export async function getAllWorkOrders(): Promise<{
     const { data, error } = await supabase
       .from('work_orders')
       .select(`
-        id,
-        mo_id,
-        name,
-        status,
-        required_quantity,
-        completed_quantity,
-        assignee_id,
-        created_at,
-        updated_at,
-        profiles:assignee_id (
+        *,
+        profiles (
           full_name
+        ),
+        manufacturing_orders!work_orders_mo_id_fkey (
+          id,
+          product_id,
+          products (
+            id,
+            name
+          )
         )
       `)
       .order('created_at', { ascending: false });
@@ -67,13 +83,14 @@ export async function getAllWorkOrders(): Promise<{
       mo_id: wo.mo_id,
       name: wo.name,
       status: wo.status,
-      required_quantity: wo.required_quantity,
-      completed_quantity: wo.completed_quantity || 0,
       assignee_id: wo.assignee_id,
       created_at: wo.created_at,
       updated_at: wo.updated_at,
-      operator_name: wo.profiles?.[0]?.full_name || null,
-      operator_full_name: wo.profiles?.[0]?.full_name || null
+      profiles: wo.profiles || null,
+      manufacturing_orders: wo.manufacturing_orders || null,
+      operator_name: wo.profiles?.full_name || null,
+      operator_full_name: wo.profiles?.full_name || null,
+      finished_product_name: wo.manufacturing_orders?.products?.name || null
     }));
 
     return { data: workOrdersWithOperators, error: null };
