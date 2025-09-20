@@ -11,11 +11,12 @@ import {
   Hash,
   Loader2,
   Save,
-  CheckCircle
+  CheckCircle,
+  Users,
+  Clock
 } from 'lucide-react';
 
 import { Product, Operator } from '@/types';
-import { manufacturingOrderApi } from '@/lib/api/manufacturing-orders';
 import {
   Dialog,
   DialogContent,
@@ -76,7 +77,7 @@ export function CreateManufacturingOrderForm({
   const form = useForm<ManufacturingOrderFormData>({
     resolver: zodResolver(manufacturingOrderSchema),
     defaultValues: {
-      productId: 0,
+      productId: 0, // Set to 0 initially, will trigger validation if submitted
       quantity: 1,
       assigneeId: 'unassigned',
     },
@@ -121,11 +122,16 @@ export function CreateManufacturingOrderForm({
   const handleFormSubmit = async (data: ManufacturingOrderFormData) => {
     setIsSubmitting(true);
     try {
-      // Ensure data types are correct before sending
+      // Get raw values from the form data (ensuring proper type conversion)
+      const rawProductId = data.productId.toString();
+      const rawQuantity = data.quantity.toString();
+      const assigneeId = data.assigneeId && data.assigneeId !== 'unassigned' ? data.assigneeId : undefined;
+
+      // Create the payload with CORRECT data types
       const payload = {
-        product_id: parseInt(data.productId.toString(), 10),
-        quantity: parseInt(data.quantity.toString(), 10),
-        assignee_id: data.assigneeId && data.assigneeId !== 'unassigned' ? data.assigneeId : undefined,
+        product_id: parseInt(rawProductId, 10),
+        quantity: parseInt(rawQuantity, 10),
+        assignee_id: assigneeId,
       };
 
       // Validate converted values
@@ -137,24 +143,36 @@ export function CreateManufacturingOrderForm({
         throw new Error('Product ID and quantity must be greater than 0');
       }
 
-      const response = await manufacturingOrderApi.createManufacturingOrder(payload);
-      
-      if (response.success) {
-        // Success toast
-        toast.success(
-          'Manufacturing Order created successfully!',
-          {
-            description: `MO #${response.data?.moId} for ${data.quantity} units with ${response.data?.workOrdersCreated} work orders created.`,
-          }
-        );
-        
-        // Reset form and close dialog
-        reset();
-        onOpenChange(false);
-        onSuccess();
-      } else {
-        throw new Error(response.error || 'Failed to create manufacturing order');
+      // Send the validated payload
+      const response = await fetch('/api/manufacturing-orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        // This correctly handles the error
+        const errorData = await response.json();
+        console.error("Failed to create MO. Server responded with:", errorData);
+        throw new Error(errorData.error || 'Failed to create manufacturing order');
       }
+
+      // It was successful!
+      const result = await response.json();
+      console.log("Successfully created MO:", result);
+      
+      // Success toast
+      toast.success(
+        'Manufacturing Order created successfully!',
+        {
+          description: `MO #${result.new_mo_id} for ${payload.quantity} units created successfully.`,
+        }
+      );
+      
+      // Reset form and close dialog
+      reset();
+      onOpenChange(false);
+      onSuccess(); // Trigger the data refresh for your orders list
     } catch (error) {
       // Error toast
       const errorMessage = error instanceof Error 
@@ -254,29 +272,32 @@ export function CreateManufacturingOrderForm({
 
   return (
     <Dialog open={open} onOpenChange={handleDialogChange}>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Factory className="h-5 w-5" />
+      <DialogContent className="sm:max-w-[560px] max-h-[90vh] overflow-y-auto">
+        <DialogHeader className="space-y-3">
+          <DialogTitle className="flex items-center gap-3 text-xl font-semibold">
+            <div className="p-2 bg-blue-100 rounded-lg">
+              <Factory className="h-5 w-5 text-blue-600" />
+            </div>
             Create Manufacturing Order
           </DialogTitle>
-          <DialogDescription>
-            Create a new manufacturing order to produce finished goods from raw materials.
+          <DialogDescription className="text-gray-600">
+            Create a new manufacturing order to produce finished goods from raw materials. 
+            This will generate work orders for all required components.
           </DialogDescription>
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
+          <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-8 mt-6">
             {/* Product Selection */}
             <FormField
               control={form.control}
               name="productId"
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="flex items-center gap-2">
+                <FormItem className="space-y-3">
+                  <FormLabel className="flex items-center gap-2 text-sm font-medium text-gray-700">
                     <Package className="h-4 w-4 text-blue-500" />
                     Product to Manufacture
-                    <span className="text-red-500">*</span>
+                    <span className="text-red-500 text-xs">*</span>
                   </FormLabel>
                   <FormControl>
                     <Select 
@@ -284,29 +305,49 @@ export function CreateManufacturingOrderForm({
                       onValueChange={(value) => field.onChange(value ? parseInt(value) : 0)}
                       disabled={isLoadingProducts}
                     >
-                      <SelectTrigger className="transition-all duration-200 focus:ring-2 focus:ring-blue-500">
-                        <SelectValue placeholder="Select a finished product..." />
+                      <SelectTrigger className="h-12 transition-all duration-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 hover:border-gray-400">
+                        <SelectValue 
+                          placeholder="Choose a finished product to manufacture..." 
+                          className="text-gray-500"
+                        />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="max-h-64">
                         {isLoadingProducts ? (
-                          <div className="flex items-center justify-center py-2">
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            <span className="ml-2">Loading products...</span>
+                          <div className="flex items-center justify-center py-6">
+                            <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
+                            <span className="ml-2 text-sm text-gray-600">Loading products...</span>
                           </div>
                         ) : finishedProducts.length === 0 ? (
-                          <div className="text-center py-2 text-muted-foreground">
-                            No finished products available
+                          <div className="text-center py-6">
+                            <Package className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                            <p className="text-sm text-gray-500">No finished products available</p>
                           </div>
                         ) : (
                           finishedProducts
-                            .filter(product => product.id && product.id.toString().trim() !== '') // Filter out invalid IDs
+                            .filter(product => product.id && product.id.toString().trim() !== '')
                             .map((product) => (
-                              <SelectItem key={product.id} value={product.id.toString()}>
-                                <div className="flex flex-col">
-                                  <span className="font-medium">{product.name}</span>
-                                  <span className="text-sm text-muted-foreground">
-                                    Stock: {product.stock_on_hand}
-                                  </span>
+                              <SelectItem 
+                                key={product.id} 
+                                value={product.id.toString()}
+                                className="py-3 cursor-pointer hover:bg-gray-50"
+                              >
+                                <div className="flex items-center justify-between w-full">
+                                  <div className="flex flex-col items-start">
+                                    <span className="font-medium text-gray-900">{product.name}</span>
+                                    <span className="text-xs text-gray-500">
+                                      Current stock: {product.stock_on_hand} units
+                                    </span>
+                                  </div>
+                                  <div className={`px-2 py-1 rounded-full text-xs ${
+                                    product.stock_on_hand > 10 
+                                      ? 'bg-green-100 text-green-700' 
+                                      : product.stock_on_hand > 0 
+                                      ? 'bg-yellow-100 text-yellow-700'
+                                      : 'bg-red-100 text-red-700'
+                                  }`}>
+                                    {product.stock_on_hand > 10 ? 'In Stock' : 
+                                     product.stock_on_hand > 0 ? 'Low Stock' : 'Out of Stock'}
+                                  </div>
                                 </div>
                               </SelectItem>
                             ))
@@ -314,7 +355,7 @@ export function CreateManufacturingOrderForm({
                       </SelectContent>
                     </Select>
                   </FormControl>
-                  <FormMessage />
+                  <FormMessage className="text-xs" />
                 </FormItem>
               )}
             />
@@ -324,24 +365,29 @@ export function CreateManufacturingOrderForm({
               control={form.control}
               name="quantity"
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="flex items-center gap-2">
+                <FormItem className="space-y-3">
+                  <FormLabel className="flex items-center gap-2 text-sm font-medium text-gray-700">
                     <Hash className="h-4 w-4 text-green-500" />
                     Quantity to Produce
-                    <span className="text-red-500">*</span>
+                    <span className="text-red-500 text-xs">*</span>
                   </FormLabel>
                   <FormControl>
-                    <Input
-                      type="number"
-                      min="1"
-                      step="1"
-                      placeholder="Enter quantity..."
-                      {...field}
-                      onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
-                      className="transition-all duration-200 focus:ring-2 focus:ring-green-500"
-                    />
+                    <div className="relative">
+                      <Input
+                        type="number"
+                        min="1"
+                        step="1"
+                        placeholder="Enter production quantity..."
+                        {...field}
+                        onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                        className="h-12 pl-4 pr-16 text-lg transition-all duration-200 focus:ring-2 focus:ring-green-500 focus:border-green-500 hover:border-gray-400"
+                      />
+                      <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-sm text-gray-500">
+                        units
+                      </div>
+                    </div>
                   </FormControl>
-                  <FormMessage />
+                  <FormMessage className="text-xs" />
                 </FormItem>
               )}
             />
@@ -351,11 +397,11 @@ export function CreateManufacturingOrderForm({
               control={form.control}
               name="assigneeId"
               render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="flex items-center gap-2">
-                    <Factory className="h-4 w-4 text-purple-500" />
+                <FormItem className="space-y-3">
+                  <FormLabel className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                    <Users className="h-4 w-4 text-purple-500" />
                     Assign to Operator
-                    <span className="text-sm text-muted-foreground">(Optional)</span>
+                    <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full">Optional</span>
                   </FormLabel>
                   <FormControl>
                     <Select 
@@ -363,68 +409,93 @@ export function CreateManufacturingOrderForm({
                       onValueChange={field.onChange}
                       disabled={isLoadingOperators}
                     >
-                      <SelectTrigger className="transition-all duration-200 focus:ring-2 focus:ring-purple-500">
-                        <SelectValue placeholder="Select an operator..." />
+                      <SelectTrigger className="h-12 transition-all duration-200 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 hover:border-gray-400">
+                        <SelectValue placeholder="Choose an operator or assign later..." />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="unassigned">
-                          <span className="text-muted-foreground">Assign later</span>
+                        <SelectItem value="unassigned" className="py-3">
+                          <div className="flex items-center gap-2">
+                            <Clock className="h-4 w-4 text-gray-400" />
+                            <span className="text-gray-600">Assign later</span>
+                          </div>
                         </SelectItem>
                         {isLoadingOperators ? (
-                          <div className="flex items-center justify-center py-2">
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            <span className="ml-2">Loading operators...</span>
+                          <div className="flex items-center justify-center py-6">
+                            <Loader2 className="h-4 w-4 animate-spin text-purple-500" />
+                            <span className="ml-2 text-sm text-gray-600">Loading operators...</span>
                           </div>
                         ) : operators.length === 0 ? (
-                          <div className="text-center py-2 text-muted-foreground">
-                            No operators available
+                          <div className="text-center py-6">
+                            <Users className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                            <p className="text-sm text-gray-500">No operators available</p>
                           </div>
                         ) : (
                           operators
-                            .filter(operator => operator.id && operator.id.trim() !== '') // Filter out invalid IDs
+                            .filter(operator => operator.id && operator.id.trim() !== '')
                             .map((operator) => (
-                              <SelectItem key={operator.id} value={operator.id}>
-                                {operator.full_name}
+                              <SelectItem 
+                                key={operator.id} 
+                                value={operator.id}
+                                className="py-3 cursor-pointer hover:bg-gray-50"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
+                                    <Users className="h-4 w-4 text-purple-600" />
+                                  </div>
+                                  <span className="font-medium">{operator.full_name}</span>
+                                </div>
                               </SelectItem>
                             ))
                         )}
                       </SelectContent>
                     </Select>
                   </FormControl>
-                  <FormMessage />
+                  <FormMessage className="text-xs" />
                 </FormItem>
               )}
             />
 
             {/* Info box */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <div className="flex items-start gap-2">
-                <CheckCircle className="h-5 w-5 text-blue-500 mt-0.5" />
-                <div className="text-sm text-blue-700">
-                  <p className="font-medium mb-1">What happens next:</p>
-                  <ul className="space-y-1 text-sm">
-                    <li>• Manufacturing order will be created</li>
-                    <li>• Work orders will be auto-generated for each component</li>
-                    <li>• You can track progress on the manufacturing dashboard</li>
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-5">
+              <div className="flex items-start gap-3">
+                <div className="p-1 bg-blue-100 rounded-lg">
+                  <CheckCircle className="h-5 w-5 text-blue-600" />
+                </div>
+                <div className="flex-1">
+                  <h4 className="font-medium text-blue-900 mb-2">Process Overview</h4>
+                  <ul className="space-y-2 text-sm text-blue-800">
+                    <li className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
+                      Manufacturing order will be created with draft status
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
+                      Work orders will be auto-generated for each component
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
+                      Track progress on the manufacturing dashboard
+                    </li>
                   </ul>
                 </div>
               </div>
             </div>
 
             {/* Form Actions */}
-            <div className="flex justify-end space-x-3 pt-6 border-t">
+            <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => handleDialogChange(false)}
                 disabled={isSubmitting}
+                className="px-6 py-2.5 h-auto"
               >
                 Cancel
               </Button>
               <Button
                 type="submit"
                 disabled={!isValid || isSubmitting || finishedProducts.length === 0}
-                className="min-w-[140px]"
+                className="px-6 py-2.5 h-auto bg-blue-600 hover:bg-blue-700 min-w-[140px]"
               >
                 {isSubmitting ? (
                   <>
@@ -434,7 +505,7 @@ export function CreateManufacturingOrderForm({
                 ) : (
                   <>
                     <Save className="mr-2 h-4 w-4" />
-                    Create MO
+                    Create Manufacturing Order
                   </>
                 )}
               </Button>

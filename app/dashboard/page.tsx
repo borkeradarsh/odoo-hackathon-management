@@ -1,14 +1,13 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import useSWR from 'swr';
-import { ProtectedRoute } from '@/components/auth/protected-route'
-import { Sidebar } from '@/components/layout/sidebar'
-import { PageHeader } from '@/components/layout/page-header'
-import { StatsCard } from '@/components/dashboard/stats-card'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
+import { useDashboardAnalytics } from '@/hooks/use-dashboard-analytics';
+import { ProtectedRoute } from '@/components/auth/protected-route';
+import { Sidebar } from '@/components/layout/sidebar';
+import { PageHeader } from '@/components/layout/page-header';
+import { StatsCard } from '@/components/dashboard/stats-card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 
 import { 
   Package, 
@@ -18,12 +17,26 @@ import {
   CheckCircle,
   Clock,
   Loader2,
-  RefreshCw
-} from 'lucide-react'
-import { DashboardAnalytics } from '@/lib/api';
+  RefreshCw,
+  AlertTriangle
+} from 'lucide-react';
 
-// Simple fetcher function for SWR
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+// Utility function for formatting dates
+const formatDate = (dateString: string) => {
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+      return 'Invalid Date';
+    }
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  } catch {
+    return 'Invalid Date';
+  }
+};
 
 // Status color mapping
 const getStatusColor = (status: string) => {
@@ -55,350 +68,226 @@ const getStockAlertColor = (current: number, minimum: number) => {
   }
 };
 
-export default function DashboardPage() {
-  // Simple SWR configuration without complex caching
-  const { 
-    data: analyticsData, 
-    error, 
-    isLoading,
-    mutate 
-  } = useSWR('/api/dashboard/analytics', fetcher, {
-    revalidateOnFocus: false,      // Don't refetch when window gains focus
-    revalidateOnReconnect: true,   // Refetch when connection is restored
-    refreshInterval: 60000,        // Refresh every 60 seconds
-    dedupingInterval: 30000,       // Dedupe requests within 30 seconds
-    errorRetryCount: 3,            // Retry failed requests 3 times
-    errorRetryInterval: 5000,      // Wait 5 seconds between retries
-    keepPreviousData: true,        // Keep showing old data while fetching new
-  });
-
-  const analytics: DashboardAnalytics = analyticsData?.data || analyticsData || {
-    kpis: {
-      total_products: 0,
-      active_boms: 0,
-      in_progress_mos: 0,
-      pending_wos: 0,
-      low_stock_items: 0,
-      completed_this_month: 0
-    },
-    recentOrders: [],
-    stockAlerts: []
-  };
-
-  // State for UI indicators
-  const [isRefreshing, setIsRefreshing] = useState(false);
-
-  // Handle refresh with loading state
-  const handleRefreshWithLoading = async () => {
-    setIsRefreshing(true);
-    try {
-      await mutate();
-    } finally {
-      setTimeout(() => setIsRefreshing(false), 1000); // Keep loading for visual feedback
-    }
-  };
-
-  // Debug logging
-  console.log('Dashboard State Debug:', {
-    isLoading,
-    hasAnalyticsData: !!analyticsData,
-    analyticsDataType: typeof analyticsData,
-    analyticsDataKeys: analyticsData ? Object.keys(analyticsData) : null,
-    error: error?.message || null
-  });
-
-  // Force render after a reasonable time or if we have any data
-  const [forceRender, setForceRender] = useState(false);
-  
-  useEffect(() => {
-    // Force render after 3 seconds to prevent infinite loading
-    const timer = setTimeout(() => {
-      console.log('Force rendering dashboard after timeout');
-      setForceRender(true);
-    }, 3000);
-    
-    // Also force render if we get any data (even empty)
-    if (analyticsData !== undefined) {
-      setForceRender(true);
-    }
-    
-    return () => clearTimeout(timer);
-  }, [analyticsData]);
-
-  // Improved loading condition - only show loading if we truly don't have data and no error
-  const showLoading = (isLoading && !analyticsData && !forceRender && !error);
-  
-  console.log('Loading Condition Debug:', {
-    isLoading,
-    hasAnalyticsData: !!analyticsData,
-    forceRender,
-    hasError: !!error,
-    showLoading,
-    shouldRenderDashboard: !showLoading && !error
-  });
-  
-  if (showLoading) {
-    return (
-      <ProtectedRoute>
-        <Sidebar>
-          <div className="space-y-6">
-            <PageHeader
-              title="Dashboard"
-              description="Overview of your manufacturing operations"
-            />
-            
-            <Card>
-              <CardHeader>
-                <CardTitle>Loading Dashboard...</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center space-x-2">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>Loading analytics data...</span>
-                </div>
-              </CardContent>
-            </Card>
+// Loading spinner component
+function DashboardSpinner() {
+  return (
+    <ProtectedRoute allowedRoles={['admin', 'operator']}>
+      <Sidebar>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+            <p className="text-muted-foreground">Loading dashboard...</p>
           </div>
-        </Sidebar>
-      </ProtectedRoute>
-    );
+        </div>
+      </Sidebar>
+    </ProtectedRoute>
+  );
+}
+
+// Error component
+function DashboardError({ error }: { error: string }) {
+  return (
+    <ProtectedRoute allowedRoles={['admin', 'operator']}>
+      <Sidebar>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <AlertTriangle className="h-8 w-8 text-red-500 mx-auto mb-4" />
+            <p className="text-red-500 mb-2">Error loading dashboard</p>
+            <p className="text-muted-foreground text-sm">{error}</p>
+            <Button 
+              onClick={() => window.location.reload()} 
+              variant="outline" 
+              className="mt-4"
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Retry
+            </Button>
+          </div>
+        </div>
+      </Sidebar>
+    </ProtectedRoute>
+  );
+}
+
+export default function DashboardPage() {
+  const { data, isLoading, error } = useDashboardAnalytics();
+
+  if (isLoading) {
+    return <DashboardSpinner />;
   }
 
   if (error) {
-    return (
-      <ProtectedRoute>
-        <Sidebar>
-          <div className="space-y-6">
-            <PageHeader
-              title="Dashboard"
-              description="Overview of your manufacturing operations"
-            />
-            
-            <Card>
-              <CardHeader>
-                <CardTitle>Error Loading Dashboard</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-destructive mb-4">
-                  Failed to load dashboard data. This is likely because the database tables haven&apos;t been created yet.
-                </p>
-                <div className="flex space-x-2">
-                  <Button onClick={handleRefreshWithLoading} disabled={isRefreshing}>
-                    {isRefreshing ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <RefreshCw className="mr-2 h-4 w-4" />
-                    )}
-                    {isRefreshing ? 'Retrying...' : 'Try Again'}
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    onClick={handleRefreshWithLoading}
-                    disabled={isRefreshing}
-                    title="Clear cache and try again"
-                  >
-                    Clear Cache & Retry
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </Sidebar>
-      </ProtectedRoute>
-    );
+    return <DashboardError error={error} />;
   }
 
-  console.log('Analytics data structure:', {
-    hasKpis: !!(analyticsData?.kpis),
-    hasRecentOrders: !!(analyticsData?.recentOrders),
-    hasStockAlerts: !!(analyticsData?.stockAlerts),
-    fullData: analyticsData
-  });
+  // Render the dashboard only when data is successfully loaded
+  if (!data) {
+    return <DashboardSpinner />;
+  }
 
   return (
-    <ProtectedRoute>
+    <ProtectedRoute allowedRoles={['admin', 'operator']}>
       <Sidebar>
         <div className="space-y-6">
+          {/* Header */}
           <div className="flex justify-between items-center">
             <PageHeader
-              title="Analytics Dashboard"
-              description="Overview of your manufacturing operations"
+              title="Manufacturing Dashboard"
+              description="Overview of production operations and key metrics"
             />
-            <div className="flex items-center space-x-2">
-              {/* Cache status indicator */}
-              <div className="text-xs text-gray-500 hidden sm:block">
-                {analyticsData ? (
-                  <span className="flex items-center">
-                    📦 Cached data
-                  </span>
-                ) : null}
-              </div>
-              
-              {/* Refresh button */}
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={handleRefreshWithLoading}
-                disabled={isLoading || isRefreshing}
-              >
-                {isLoading || isRefreshing ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                )}
-                {isRefreshing ? 'Refreshing...' : 'Refresh'}
-              </Button>
-              
-              {/* Clear cache button */}
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={handleRefreshWithLoading}
-                disabled={isLoading || isRefreshing}
-                title="Clear cache and fetch fresh data"
-              >
-                🗑️
-              </Button>
-            </div>
+            <Button 
+              onClick={() => window.location.reload()}
+              variant="outline"
+              size="sm"
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Refresh
+            </Button>
           </div>
-          
-          {/* Stats Grid */}
+
+          {/* KPI Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <StatsCard
               title="Total Products"
-              value={analytics.kpis.total_products}
+              value={data.kpis.total_products}
               description="Products in inventory"
               icon={Package}
             />
             <StatsCard
               title="Active BOMs"
-              value={analytics.kpis.active_boms}
-              description="Bill of materials configured"
+              value={data.kpis.active_boms}
+              description="Bills of Materials"
               icon={FileText}
             />
             <StatsCard
-              title="Manufacturing Orders"
-              value={analytics.kpis.in_progress_mos}
-              description="Currently in progress"
+              title="In Progress MOs"
+              value={data.kpis.in_progress_mos}
+              description="Manufacturing Orders"
               icon={ClipboardList}
             />
             <StatsCard
               title="Pending Work Orders"
-              value={analytics.kpis.pending_wos}
-              description="Awaiting execution"
+              value={data.kpis.pending_wos}
+              description="Work orders pending"
               icon={Clock}
             />
             <StatsCard
               title="Low Stock Items"
-              value={analytics.kpis.low_stock_items}
-              description="Below minimum threshold"
+              value={data.kpis.low_stock_items}
+              description="Items below minimum"
               icon={TrendingDown}
             />
             <StatsCard
               title="Completed This Month"
-              value={analytics.kpis.completed_this_month}
-              description="Manufacturing orders finished"
+              value={data.kpis.completed_this_month}
+              description="Orders completed"
               icon={CheckCircle}
             />
           </div>
 
-          {/* Recent Activity */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Recent Manufacturing Orders</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {isLoading ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin" />
-                    <span className="ml-2">Loading recent orders...</span>
-                  </div>
-                ) : analytics.recentOrders.length === 0 ? (
-                  <div className="text-center py-8">
-                    <p className="text-muted-foreground">No recent manufacturing orders found.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {analytics.recentOrders.map((order) => (
-                      <div key={order.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                        <div>
-                          <p className="font-medium">{order.product_name}</p>
-                          <p className="text-sm text-gray-600">Quantity: {order.quantity_to_produce} units</p>
-                        </div>
-                        <Badge className={getStatusColor(order.status)}>
-                          {order.status}
-                        </Badge>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Stock Alerts</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {isLoading ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin" />
-                    <span className="ml-2">Loading stock alerts...</span>
-                  </div>
-                ) : analytics.stockAlerts.length === 0 ? (
-                  <div className="text-center py-8">
-                    <p className="text-muted-foreground">No stock alerts. All products are well-stocked!</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {analytics.stockAlerts.map((item) => {
-                      const ratio = item.stock_on_hand / item.min_stock_level;
-                      const alertType = ratio < 0.5 ? 'Critical' : ratio < 1 ? 'Low Stock' : 'Near Minimum';
-                      
-                      return (
-                        <div 
-                          key={item.id} 
-                          className={`flex items-center justify-between p-3 rounded-lg border ${getStockAlertColor(item.stock_on_hand, item.min_stock_level)}`}
+          {/* Content Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Recent Orders */}
+            <div className="lg:col-span-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <ClipboardList className="h-5 w-5" />
+                    Recent Manufacturing Orders
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {data.recentOrders.length === 0 ? (
+                    <div className="text-center py-8">
+                      <ClipboardList className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                      <p className="text-muted-foreground">No recent orders found</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {data.recentOrders.map((order) => (
+                        <div
+                          key={order.id}
+                          className="flex items-center justify-between p-4 border rounded-lg hover:shadow-md transition-all bg-white"
                         >
                           <div>
-                            <p className="font-medium">{item.name}</p>
-                            <p className="text-sm">
-                              Current: {item.stock_on_hand} | Min: {item.min_stock_level}
-                            </p>
+                            <div className="font-medium text-lg">
+                              MO-{order.id.toString().padStart(4, '0')}
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                              {order.product_name || 'Product'} • {formatDate(order.created_at)}
+                            </div>
+                            <div className="text-xs text-muted-foreground mt-1">
+                              Qty: {order.quantity_to_produce}
+                            </div>
                           </div>
                           <Badge 
-                            variant={ratio < 0.5 ? 'destructive' : ratio < 1 ? 'secondary' : 'default'}
+                            variant="secondary"
+                            className={`${getStatusColor(order.status)} border-0 font-medium`}
                           >
-                            {alertType}
+                            {order.status.replace('_', ' ').toUpperCase()}
                           </Badge>
                         </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-          
-          {/* Cache Status Footer */}
-          <div className="mt-8 text-center text-xs text-gray-500">
-            <div className="flex items-center justify-center space-x-4">
-              <span>
-                💾 Data cached for faster loading
-              </span>
-              <span>•</span>
-              <span>
-                🔄 Auto-refreshes every 60 seconds
-              </span>
-              <span>•</span>
-              <span>
-                ⚡ Instant load from cache
-              </span>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Stock Alerts */}
+            <div>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <TrendingDown className="h-5 w-5" />
+                    Stock Alerts
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {data.stockAlerts.length === 0 ? (
+                    <div className="text-center py-8">
+                      <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
+                      <p className="text-muted-foreground">All stock levels good</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {data.stockAlerts.map((item) => {
+                        const alertSeverity = getStockAlertColor(item.stock_on_hand, item.min_stock_level);
+                        const stockRatio = (item.stock_on_hand / item.min_stock_level) * 100;
+                        return (
+                          <div
+                            key={item.id}
+                            className={`p-4 border rounded-lg ${alertSeverity} transition-all hover:shadow-md`}
+                          >
+                            <div className="font-medium text-base">{item.name}</div>
+                            <div className="text-sm mt-1">
+                              Current: <span className="font-medium">{item.stock_on_hand}</span> | 
+                              Minimum: <span className="font-medium">{item.min_stock_level}</span>
+                            </div>
+                            <div className="text-xs mt-2">
+                              <div className="flex items-center gap-2">
+                                <div className="flex-1 bg-gray-200 rounded-full h-2">
+                                  <div 
+                                    className={`h-2 rounded-full ${stockRatio < 50 ? 'bg-red-500' : stockRatio < 100 ? 'bg-yellow-500' : 'bg-green-500'}`}
+                                    style={{ width: `${Math.min(stockRatio, 100)}%` }}
+                                  ></div>
+                                </div>
+                                <span className="text-xs font-medium">
+                                  {stockRatio.toFixed(0)}%
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             </div>
           </div>
         </div>
       </Sidebar>
     </ProtectedRoute>
-  )
+  );
 }

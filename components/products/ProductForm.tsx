@@ -2,6 +2,7 @@
 
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useEffect } from 'react';
 import * as z from 'zod';
 import { toast } from 'sonner';
 import {
@@ -82,6 +83,26 @@ export function ProductForm({
     },
   });
 
+  // Reset form when initialData changes (for editing)
+  useEffect(() => {
+    if (open && initialData) {
+      form.reset({
+        name: initialData.name || '',
+        type: initialData.type || 'Raw Material',
+        stock_on_hand: initialData.stock_on_hand || 0,
+        min_stock_level: initialData.min_stock_level || 10,
+      });
+    } else if (open && !initialData) {
+      // Reset to default values for new product
+      form.reset({
+        name: '',
+        type: 'Raw Material',
+        stock_on_hand: 0,
+        min_stock_level: 10,
+      });
+    }
+  }, [open, initialData, form]);
+
   const { handleSubmit, formState: { isSubmitting, isValid } } = form;
 
   const handleFormSubmit = async (data: ProductFormData) => {
@@ -140,7 +161,7 @@ export function ProductForm({
           </DialogTitle>
           <DialogDescription>
             {isEditing 
-              ? 'Update the product information below.' 
+              ? `Modify the details for "${initialData?.name}". Current stock: ${initialData?.stock_on_hand || 0}` 
               : 'Enter the details for the new product.'}
           </DialogDescription>
         </DialogHeader>
@@ -163,7 +184,7 @@ export function ProductForm({
                       </FormLabel>
                       <FormControl>
                         <Input
-                          placeholder="Enter product name... (required)"
+                          placeholder={isEditing ? "Update product name" : "e.g., Steel Bolts M8x20"}
                           {...field}
                           className="transition-all duration-200 focus:ring-2 focus:ring-blue-500"
                         />
@@ -237,7 +258,7 @@ export function ProductForm({
                         type="number"
                         min="0"
                         step="1"
-                        placeholder="0 (current inventory)"
+                        placeholder={isEditing ? "Current stock quantity" : "0"}
                         {...field}
                         onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
                         className="transition-all duration-200 focus:ring-2 focus:ring-purple-500"
@@ -263,7 +284,7 @@ export function ProductForm({
                         type="number"
                         min="0"
                         step="1"
-                        placeholder="10 (reorder point)"
+                        placeholder={isEditing ? "Minimum stock threshold" : "10"}
                         {...field}
                         onChange={(e) => field.onChange(parseInt(e.target.value) || 10)}
                         className="transition-all duration-200 focus:ring-2 focus:ring-orange-500"

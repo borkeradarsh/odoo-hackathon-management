@@ -79,25 +79,75 @@ async function getFallbackDashboardAnalytics(supabase: Awaited<ReturnType<typeof
       console.warn('Manufacturing orders table not accessible:', error);
     }
 
+    // Try to get pending work orders
+    try {
+      const { count: pendingWorkOrdersCount } = await supabase
+        .from('work_orders')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'pending');
+      kpis.pending_wos = pendingWorkOrdersCount || 0;
+    } catch (error) {
+      console.warn('Work orders table not accessible:', error);
+    }
+
+    // Try to get low stock items count
+    try {
+      // First, let's check what products exist
+      const { data: allProducts, error: productsError } = await supabase
+        .from('products')
+        .select('id, name, stock_on_hand, min_stock_level')
+        .limit(10);
+      
+      console.log('📦 Sample products:', allProducts);
+      console.log('🚨 Products error:', productsError);
+
+      const { count: lowStockCount } = await supabase
+        .from('products')
+        .select('*', { count: 'exact', head: true })
+        .not('min_stock_level', 'is', null)
+        .filter('stock_on_hand', 'lt', 'min_stock_level');
+      
+      console.log('📉 Low stock count:', lowStockCount);
+      kpis.low_stock_items = lowStockCount || 0;
+    } catch (error) {
+      console.warn('Products table not accessible for low stock:', error);
+    }
+
     // Get recent orders (with fallback to empty array)
     let recentOrders: Array<{
       id: string;
       product_name: string;
       quantity_to_produce: number;
       status: string;
+      created_at: string;
     }> = [];
     try {
       const { data: ordersData } = await supabase
         .from('manufacturing_orders')
-        .select('id, quantity_to_produce, status')
+        .select(`
+          id, 
+          quantity_to_produce, 
+          status, 
+          created_at,
+          products!inner(name)
+        `)
         .order('created_at', { ascending: false })
         .limit(3);
 
-      recentOrders = (ordersData || []).map((order) => ({
+      interface OrderWithProduct {
+        id: string;
+        quantity_to_produce: number;
+        status: string;
+        created_at: string;
+        products: { name: string }[];
+      }
+
+      recentOrders = (ordersData || []).map((order: OrderWithProduct) => ({
         id: order.id,
-        product_name: 'Manufacturing Order',
+        product_name: order.products?.[0]?.name || 'Unknown Product',
         quantity_to_produce: order.quantity_to_produce,
-        status: order.status
+        status: order.status,
+        created_at: order.created_at
       }));
     } catch (error) {
       console.warn('Could not fetch recent orders:', error);
@@ -111,13 +161,17 @@ async function getFallbackDashboardAnalytics(supabase: Awaited<ReturnType<typeof
       min_stock_level: number;
     }> = [];
     try {
-      const { data: stockData } = await supabase
+      const { data: stockData, error: stockError } = await supabase
         .from('products')
         .select('id, name, stock_on_hand, min_stock_level')
-        .filter('stock_on_hand', 'lt', 'min_stock_level')
+        .not('min_stock_level', 'is', null)
+        .filter('stock_on_hand', 'lte', 'min_stock_level')
         .order('stock_on_hand', { ascending: true })
-        .limit(3);
+        .limit(5);
 
+      console.log('📊 Stock alerts data:', stockData);
+      console.log('❗ Stock alerts error:', stockError);
+      
       stockAlerts = stockData || [];
     } catch (error) {
       console.warn('Could not fetch stock alerts:', error);
