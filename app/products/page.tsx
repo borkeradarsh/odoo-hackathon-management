@@ -24,16 +24,16 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ProductForm } from '@/components/products/product-form';
+import ProductForm from '@/components/products/product-form';
 import { Product } from '@/types';
 import { productApi } from '@/lib/api';
+import { Sidebar } from '@/components/layout/sidebar';
 
 // Form data type for product creation/update
 type ProductFormData = {
   name: string;
   sku: string;
   description?: string | null;
-  unit_of_measure: string;
   cost_price: number;
   selling_price?: number | null;
   current_stock?: number;
@@ -180,136 +180,138 @@ export default function ProductsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Products</h1>
-          <p className="text-muted-foreground">
-            Manage your product inventory and information.
-          </p>
+    <Sidebar>
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-extrabold tracking-tight text-sidebar-primary-foreground drop-shadow-lg">Products</h1>
+            <p className="text-sidebar-accent-foreground">
+              Manage your product inventory and information.
+            </p>
+          </div>
+          <Button onClick={handleCreateNew} className="rounded-full bg-sidebar-primary text-sidebar-primary-foreground px-6 py-2 shadow border-none">
+            <Plus className="mr-2 h-4 w-4" />
+            Create New Product
+          </Button>
         </div>
-        <Button onClick={handleCreateNew}>
-          <Plus className="mr-2 h-4 w-4" />
-          Create New Product
-        </Button>
-      </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Product List</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-8 w-8 animate-spin" />
-              <span className="ml-2">Loading products...</span>
-            </div>
-          ) : products.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-muted-foreground">No products found.</p>
-              <Button 
-                onClick={handleCreateNew}
-                className="mt-4"
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Create Your First Product
-              </Button>
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>SKU</TableHead>
-                  <TableHead>Unit</TableHead>
-                  <TableHead>Cost Price</TableHead>
-                  <TableHead>Selling Price</TableHead>
-                  <TableHead>Stock</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {products.map((product) => (
-                  <TableRow key={product.id}>
-                    <TableCell className="font-medium">{product.name}</TableCell>
-                    <TableCell>{product.sku}</TableCell>
-                    <TableCell>{product.unit_of_measure}</TableCell>
-                    <TableCell>${product.cost_price.toFixed(2)}</TableCell>
-                    <TableCell>
-                      {product.selling_price 
-                        ? `$${product.selling_price.toFixed(2)}` 
-                        : 'N/A'
-                      }
-                    </TableCell>
-                    <TableCell>{product.current_stock}</TableCell>
-                    <TableCell>
-                      {getStockStatus(product.current_stock, product.minimum_stock)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleEdit(product)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleDeleteClick(product)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
+        <div className="bg-sidebar-accent border border-sidebar-border rounded-2xl shadow-xl">
+          <div className="px-6 pt-6 pb-2 border-b border-sidebar-border">
+            <h2 className="text-xl font-bold text-sidebar-primary-foreground">Product List</h2>
+          </div>
+          <div className="px-6 pb-6">
+            {isLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-sidebar-ring" />
+                <span className="ml-2 text-sidebar-primary-foreground">Loading products...</span>
+              </div>
+            ) : products.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-sidebar-accent-foreground">No products found.</p>
+                <Button 
+                  onClick={handleCreateNew}
+                  className="mt-4 rounded-full bg-sidebar-primary text-sidebar-primary-foreground px-6 py-2 shadow border-none"
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Create Your First Product
+                </Button>
+              </div>
+            ) : (
+              <Table className="bg-sidebar rounded-xl border border-sidebar-border shadow">
+                <TableHeader>
+                  <TableRow className="bg-sidebar-accent">
+                    <TableHead className="text-sidebar-primary font-bold">Name</TableHead>
+                    <TableHead className="text-sidebar-primary font-bold">SKU</TableHead>
+                    <TableHead className="text-sidebar-primary font-bold">Cost Price</TableHead>
+                    <TableHead className="text-sidebar-primary font-bold">Selling Price</TableHead>
+                    <TableHead className="text-sidebar-primary font-bold">Stock</TableHead>
+                    <TableHead className="text-sidebar-primary font-bold">Status</TableHead>
+                    <TableHead className="text-right text-sidebar-primary font-bold">Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+                </TableHeader>
+                <TableBody>
+                  {products.map((product) => (
+                    <TableRow key={product.id} className="bg-sidebar-accent hover:bg-sidebar-ring/20 rounded-lg">
+                      <TableCell className="font-semibold text-sidebar-primary-foreground">{product.name}</TableCell>
+                      <TableCell className="text-sidebar-primary-foreground">{product.sku}</TableCell>
+                      <TableCell className="text-sidebar-primary-foreground">${product.cost_price.toFixed(2)}</TableCell>
+                      <TableCell className="text-sidebar-primary-foreground">
+                        {product.selling_price 
+                          ? `$${product.selling_price.toFixed(2)}` 
+                          : 'N/A'
+                        }
+                      </TableCell>
+                      <TableCell className="text-sidebar-primary-foreground">{product.current_stock}</TableCell>
+                      <TableCell>
+                        {getStockStatus(product.current_stock, product.minimum_stock)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEdit(product)}
+                            className="rounded-full bg-sidebar-ring text-sidebar-primary-foreground border-none shadow"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDeleteClick(product)}
+                            className="rounded-full bg-destructive text-white border-none shadow"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </div>
+        </div>
 
-      {/* Product Form Dialog */}
-      <ProductForm
-        product={editingProduct}
-        open={formOpen}
-        onOpenChange={handleFormClose}
-        onSubmit={handleFormSubmit}
-        isLoading={isSubmitting}
-      />
+        {/* Product Form Dialog */}
+        <ProductForm
+          product={editingProduct}
+          open={formOpen}
+          onOpenChange={handleFormClose}
+          onSubmit={handleFormSubmit}
+          isLoading={isSubmitting}
+        />
 
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the product
-              &ldquo;{productToDelete?.name}&rdquo; and remove it from the system.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              disabled={isDeleting}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {isDeleting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Deleting...
-                </>
-              ) : (
-                'Delete Product'
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </div>
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <AlertDialogContent className="bg-sidebar-accent border-sidebar-border rounded-2xl shadow-xl">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-sidebar-primary-foreground">Are you sure?</AlertDialogTitle>
+              <AlertDialogDescription className="text-sidebar-accent-foreground">
+                This action cannot be undone. This will permanently delete the product
+                &ldquo;{productToDelete?.name}&rdquo; and remove it from the system.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isDeleting} className="rounded-full bg-sidebar-ring text-sidebar-primary-foreground px-6 py-2 shadow border-none">Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDelete}
+                disabled={isDeleting}
+                className="rounded-full bg-destructive text-white px-6 py-2 shadow border-none"
+              >
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  'Delete Product'
+                )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
+    </Sidebar>
   );
 }
