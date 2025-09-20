@@ -1,0 +1,26 @@
+import { NextResponse } from 'next/server';
+// This is the function that contains your complex SQL query.
+// Make sure the path is correct for your project structure.
+import { getDashboardAnalytics } from '@/lib/data';
+
+export async function GET() {
+  try {
+    const dashboardData = await getDashboardAnalytics();
+
+    // The SQL query already formats the output as a single JSON object
+    // under the key "dashboard_data". We return that directly.
+    return NextResponse.json({ data: dashboardData });
+
+  } catch (error: unknown) {
+    // Log the detailed error on the server for debugging
+    console.error('API Error fetching dashboard analytics:', error);
+
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
+    // Return a generic error message to the client
+    return NextResponse.json(
+      { error: `Failed to fetch dashboard analytics: ${errorMessage}` },
+      { status: 500 }
+    );
+  }
+}
