@@ -53,6 +53,13 @@ export function ProtectedRoute({
 
   if (allowedRoles && !allowedRoles.includes(profile.role)) {
     console.log('🔐 ProtectedRoute: Access denied for role:', profile.role);
+    if (profile.role === 'operator') {
+      // Redirect operator to my-orders page
+      useEffect(() => {
+        router.replace('/operator/my-orders');
+      }, [router]);
+      return null;
+    }
     return (
       fallback || (
         <div className="min-h-screen flex items-center justify-center">

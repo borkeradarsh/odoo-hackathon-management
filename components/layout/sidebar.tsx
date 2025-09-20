@@ -33,6 +33,7 @@ const navItems: NavItem[] = [
     title: 'Dashboard',
     href: '/dashboard',
     icon: LayoutDashboard,
+    roles: ['admin'],
   },
   {
     title: 'Products',

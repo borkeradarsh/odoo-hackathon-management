@@ -22,52 +22,12 @@ import {
 } from 'lucide-react'
 import { DashboardAnalytics } from '@/lib/api';
 
-// Cache key for localStorage
-const DASHBOARD_CACHE_KEY = 'dashboard_analytics_cache';
-const CACHE_EXPIRY_TIME = 5 * 60 * 1000; // 5 minutes
-
-// Enhanced fetcher function with caching
+// Simple fetcher for live data only
 const fetcher = async (url: string) => {
-  try {
-    // Check localStorage cache first
-    const cached = localStorage.getItem(DASHBOARD_CACHE_KEY);
-    if (cached) {
-      const { data, timestamp } = JSON.parse(cached);
-      const isExpired = Date.now() - timestamp > CACHE_EXPIRY_TIME;
-      
-      if (!isExpired) {
-        console.log('📦 Using cached dashboard data');
-        return data;
-      }
-    }
-
-    console.log('🌐 Fetching fresh dashboard data');
-    const res = await fetch(url);
-    
-    if (!res.ok) {
-      throw new Error('Failed to fetch');
-    }
-    
-    const result = await res.json();
-    const data = result.data || result;
-    
-    // Cache the fresh data
-    localStorage.setItem(DASHBOARD_CACHE_KEY, JSON.stringify({
-      data,
-      timestamp: Date.now()
-    }));
-    
-    return data;
-  } catch (error) {
-    // If fetch fails, try to return cached data even if expired
-    const cached = localStorage.getItem(DASHBOARD_CACHE_KEY);
-    if (cached) {
-      const { data } = JSON.parse(cached);
-      console.log('⚠️ Using expired cache due to fetch error');
-      return data;
-    }
-    throw error;
-  }
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('Failed to fetch');
+  const result = await res.json();
+  return result.data || result;
 };
 
 // Status color mapping
@@ -101,38 +61,19 @@ const getStockAlertColor = (current: number, minimum: number) => {
 };
 
 export default function DashboardPage() {
-  // Enhanced SWR configuration for optimal caching
+  // SWR config for live data only
   const { 
     data: analyticsData, 
     error, 
     isLoading,
     mutate 
   } = useSWR('/api/dashboard/analytics', fetcher, {
-    // Cache configuration
-    revalidateOnFocus: false, // Don't refetch when window gains focus
-    revalidateOnReconnect: true, // Refetch when connection is restored
-    refreshInterval: 60000, // Refresh every 60 seconds (reduced from 30)
-    dedupingInterval: 30000, // Dedupe requests within 30 seconds
-    
-    // Performance optimizations
-    errorRetryCount: 3, // Retry failed requests 3 times
-    errorRetryInterval: 5000, // Wait 5 seconds between retries
-    keepPreviousData: true, // Keep showing old data while fetching new
-    
-    // Fallback data from cache
-    fallbackData: (() => {
-      try {
-        const cached = localStorage.getItem(DASHBOARD_CACHE_KEY);
-        if (cached) {
-          const { data } = JSON.parse(cached);
-          console.log('🔄 Using fallback cache data for initial render');
-          return data;
-        }
-      } catch (error) {
-        console.warn('Failed to load cache:', error);
-      }
-      return undefined;
-    })(),
+    revalidateOnFocus: true,
+    revalidateOnReconnect: true,
+    refreshInterval: 60000,
+    dedupingInterval: 30000,
+    errorRetryCount: 3,
+    errorRetryInterval: 5000,
   });
 
   const analytics: DashboardAnalytics = analyticsData || {
@@ -148,41 +89,12 @@ export default function DashboardPage() {
     stockAlerts: []
   };
 
-  // Cache management functions
-  const clearCache = () => {
-    localStorage.removeItem(DASHBOARD_CACHE_KEY);
-    console.log('🗑️ Dashboard cache cleared');
-    mutate(); // Trigger fresh fetch
-  };
-
-
-
-  const handleRefreshWithCacheBust = () => {
-    clearCache();
-  };
+  // Remove cache management functions
 
   // State for UI indicators
   const [isRefreshing, setIsRefreshing] = useState(false);
 
-  // Background refresh effect
-  useEffect(() => {
-    // Preload from cache on mount
-    const cached = localStorage.getItem(DASHBOARD_CACHE_KEY);
-    if (cached) {
-      console.log('🚀 Dashboard mounted with cached data available');
-    }
-
-    // Set up periodic background refresh
-    const backgroundRefresh = setInterval(() => {
-      // Only refresh if the page is visible and user is not actively interacting
-      if (document.visibilityState === 'visible' && !isRefreshing) {
-        console.log('🔄 Background refresh triggered');
-        mutate();
-      }
-    }, 120000); // Background refresh every 2 minutes
-
-    return () => clearInterval(backgroundRefresh);
-  }, [mutate, isRefreshing]);
+  // Remove background refresh effect
 
   // Handle refresh with loading state
   const handleRefreshWithLoading = async () => {
@@ -203,46 +115,16 @@ export default function DashboardPage() {
     error: error?.message || null
   });
 
-  // Force render after a reasonable time or if we have any data
-  const [forceRender, setForceRender] = useState(false);
-  
-  useEffect(() => {
-    // Force render after 3 seconds to prevent infinite loading
-    const timer = setTimeout(() => {
-      console.log('Force rendering dashboard after timeout');
-      setForceRender(true);
-    }, 3000);
-    
-    // Also force render if we get any data (even empty)
-    if (analyticsData !== undefined) {
-      setForceRender(true);
-    }
-    
-    return () => clearTimeout(timer);
-  }, [analyticsData]);
-
-  // Improved loading condition - only show loading if we truly don't have data and no error
-  const showLoading = (isLoading && !analyticsData && !forceRender && !error);
-  
-  console.log('Loading Condition Debug:', {
-    isLoading,
-    hasAnalyticsData: !!analyticsData,
-    forceRender,
-    hasError: !!error,
-    showLoading,
-    shouldRenderDashboard: !showLoading && !error
-  });
-  
-  if (showLoading) {
+  // Simple loading condition
+  if (isLoading && !analyticsData && !error) {
     return (
-      <ProtectedRoute>
+      <ProtectedRoute allowedRoles={['admin']}>
         <Sidebar>
           <div className="space-y-6">
             <PageHeader
               title="Dashboard"
               description="Overview of your manufacturing operations"
             />
-            
             <Card>
               <CardHeader>
                 <CardTitle>Loading Dashboard...</CardTitle>
@@ -262,14 +144,13 @@ export default function DashboardPage() {
 
   if (error) {
     return (
-      <ProtectedRoute>
+      <ProtectedRoute allowedRoles={['admin']}>
         <Sidebar>
           <div className="space-y-6">
             <PageHeader
               title="Dashboard"
               description="Overview of your manufacturing operations"
             />
-            
             <Card>
               <CardHeader>
                 <CardTitle>Error Loading Dashboard</CardTitle>
@@ -286,14 +167,6 @@ export default function DashboardPage() {
                       <RefreshCw className="mr-2 h-4 w-4" />
                     )}
                     {isRefreshing ? 'Retrying...' : 'Try Again'}
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    onClick={handleRefreshWithCacheBust}
-                    disabled={isRefreshing}
-                    title="Clear cache and try again"
-                  >
-                    Clear Cache & Retry
                   </Button>
                 </div>
               </CardContent>
@@ -312,7 +185,7 @@ export default function DashboardPage() {
   });
 
   return (
-    <ProtectedRoute>
+    <ProtectedRoute allowedRoles={['admin']}>
       <Sidebar>
         <div className="space-y-6">
           <div className="flex justify-between items-center">
@@ -321,16 +194,6 @@ export default function DashboardPage() {
               description="Overview of your manufacturing operations"
             />
             <div className="flex items-center space-x-2">
-              {/* Cache status indicator */}
-              <div className="text-xs text-gray-500 hidden sm:block">
-                {analyticsData ? (
-                  <span className="flex items-center">
-                    📦 Cached data
-                  </span>
-                ) : null}
-              </div>
-              
-              {/* Refresh button */}
               <Button 
                 variant="outline" 
                 size="sm" 
@@ -344,20 +207,8 @@ export default function DashboardPage() {
                 )}
                 {isRefreshing ? 'Refreshing...' : 'Refresh'}
               </Button>
-              
-              {/* Clear cache button */}
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={handleRefreshWithCacheBust}
-                disabled={isLoading || isRefreshing}
-                title="Clear cache and fetch fresh data"
-              >
-                🗑️
-              </Button>
             </div>
           </div>
-          
           {/* Stats Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <StatsCard
@@ -397,7 +248,6 @@ export default function DashboardPage() {
               icon={CheckCircle}
             />
           </div>
-
           {/* Recent Activity */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <Card>
@@ -431,7 +281,6 @@ export default function DashboardPage() {
                 )}
               </CardContent>
             </Card>
-
             <Card>
               <CardHeader>
                 <CardTitle>Stock Alerts</CardTitle>
@@ -451,7 +300,6 @@ export default function DashboardPage() {
                     {analytics.stockAlerts.map((item) => {
                       const ratio = item.stock_on_hand / item.min_stock_level;
                       const alertType = ratio < 0.5 ? 'Critical' : ratio < 1 ? 'Low Stock' : 'Near Minimum';
-                      
                       return (
                         <div 
                           key={item.id} 
@@ -476,25 +324,8 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
           </div>
-          
-          {/* Cache Status Footer */}
-          <div className="mt-8 text-center text-xs text-gray-500">
-            <div className="flex items-center justify-center space-x-4">
-              <span>
-                💾 Data cached for faster loading
-              </span>
-              <span>•</span>
-              <span>
-                🔄 Auto-refreshes every 60 seconds
-              </span>
-              <span>•</span>
-              <span>
-                ⚡ Instant load from cache
-              </span>
-            </div>
-          </div>
         </div>
       </Sidebar>
     </ProtectedRoute>
-  )
+  );
 }

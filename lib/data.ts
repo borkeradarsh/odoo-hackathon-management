@@ -68,15 +68,35 @@ async function getFallbackDashboardAnalytics(supabase: Awaited<ReturnType<typeof
       console.warn('BOMs table not accessible:', error);
     }
 
-    // Try to get manufacturing orders
+    // Try to get manufacturing orders (in progress, pending, completed this month)
     try {
+      // In Progress
       const { count: inProgressCount } = await supabase
         .from('manufacturing_orders')
         .select('*', { count: 'exact', head: true })
         .eq('status', 'In Progress');
       kpis.in_progress_mos = inProgressCount || 0;
+
+      // Pending Work Orders
+      const { count: pendingCount } = await supabase
+        .from('work_orders')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'pending');
+      kpis.pending_wos = pendingCount || 0;
+
+      // Completed This Month
+      const now = new Date();
+      const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString();
+      const { count: completedCount } = await supabase
+        .from('manufacturing_orders')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'Completed')
+        .gte('completed_at', firstDay)
+        .lte('completed_at', lastDay);
+      kpis.completed_this_month = completedCount || 0;
     } catch (error) {
-      console.warn('Manufacturing orders table not accessible:', error);
+      console.warn('Manufacturing/work orders table not accessible:', error);
     }
 
     // Get recent orders (with fallback to empty array)
@@ -103,7 +123,7 @@ async function getFallbackDashboardAnalytics(supabase: Awaited<ReturnType<typeof
       console.warn('Could not fetch recent orders:', error);
     }
 
-    // Get stock alerts (with fallback to empty array)
+    // Get stock alerts (with fallback to empty array) and count for low stock items
     let stockAlerts: Array<{
       id: string;
       name: string;
@@ -111,14 +131,14 @@ async function getFallbackDashboardAnalytics(supabase: Awaited<ReturnType<typeof
       min_stock_level: number;
     }> = [];
     try {
-      const { data: stockData } = await supabase
+      const { data: stockData, count: lowStockCount } = await supabase
         .from('products')
-        .select('id, name, stock_on_hand, min_stock_level')
+        .select('id, name, stock_on_hand, min_stock_level', { count: 'exact' })
         .filter('stock_on_hand', 'lt', 'min_stock_level')
-        .order('stock_on_hand', { ascending: true })
-        .limit(3);
+        .order('stock_on_hand', { ascending: true });
 
       stockAlerts = stockData || [];
+      kpis.low_stock_items = lowStockCount || 0;
     } catch (error) {
       console.warn('Could not fetch stock alerts:', error);
     }

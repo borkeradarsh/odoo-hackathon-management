@@ -9,10 +9,10 @@ export async function GET() {
     const { data: boms, error } = await supabase
       .from('boms')
       .select(`
-        *,
+        id, created_at,
         product:products(id, name),
         bom_items:bom_items(
-          *,
+          quantity,
           component:products(id, name)
         )
       `)
@@ -26,7 +26,25 @@ export async function GET() {
       );
     }
 
-    return NextResponse.json({ boms });
+    // Transform the response to match frontend expectations
+    const formatted = (boms || []).map(bom => {
+      // Supabase returns joined objects as arrays if multiple, so pick first
+      const product = Array.isArray(bom.product) ? bom.product[0] : bom.product;
+      return {
+        id: bom.id,
+        created_at: bom.created_at,
+        product: product ? { id: product.id, name: product.name } : null,
+        bom_items: (bom.bom_items || []).map(item => {
+          const component = Array.isArray(item.component) ? item.component[0] : item.component;
+          return {
+            quantity: item.quantity,
+            component: component ? { id: component.id, name: component.name } : null
+          };
+        })
+      };
+    });
+
+    return NextResponse.json({ data: formatted });
   } catch (error) {
     console.error('Unexpected error fetching BOMs:', error);
     return NextResponse.json(
