@@ -72,18 +72,28 @@ interface SidebarProps {
 }
 
 export function Sidebar({ children }: SidebarProps) {
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
-  const { userProfile, signOut } = useAuth()
-  const pathname = usePathname()
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+  const [signOutError, setSignOutError] = useState<string | null>(null);
+  const { userProfile, signOut } = useAuth();
+  const pathname = usePathname();
 
   const filteredNavItems = navItems.filter(item => {
-    if (!item.roles) return true
-    return item.roles.includes(userProfile?.app_role || 'operator')
-  })
+    if (!item.roles) return true;
+    return item.roles.includes(userProfile?.app_role || 'operator');
+  });
 
   const handleSignOut = async () => {
-    await signOut()
-  }
+    setSigningOut(true);
+    setSignOutError(null);
+    try {
+      await signOut();
+    } catch (err: any) {
+      setSignOutError(err?.message || 'Sign out failed');
+    } finally {
+      setSigningOut(false);
+    }
+  };
 
   return (
     <div className="flex h-screen bg-gray-100">
@@ -168,10 +178,14 @@ export function Sidebar({ children }: SidebarProps) {
               variant="outline"
               onClick={handleSignOut}
               className="w-full flex items-center space-x-2"
+              disabled={signingOut}
             >
               <LogOut className="w-4 h-4" />
-              <span>Sign Out</span>
+              <span>{signingOut ? 'Signing Out...' : 'Sign Out'}</span>
             </Button>
+            {signOutError && (
+              <div className="mt-2 text-sm text-red-600 text-center">{signOutError}</div>
+            )}
           </div>
         </div>
       </div>

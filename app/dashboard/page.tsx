@@ -1,3 +1,4 @@
+
 "use client";
 
 import useSWR from 'swr';
@@ -8,6 +9,7 @@ import { StatsCard } from '@/components/dashboard/stats-card'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+
 import { 
   Package, 
   FileText, 
@@ -117,6 +119,7 @@ export default function DashboardPage() {
       </ProtectedRoute>
     );
   }
+
 
   return (
     <ProtectedRoute>
