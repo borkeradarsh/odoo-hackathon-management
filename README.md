@@ -2,6 +2,8 @@
 
 A comprehensive digital manufacturing and production management application built for a 24-hour hackathon challenge.
 
+# working mp4 videolink: https://drive.google.com/file/d/1rgyq_6Sxh8fWJ5D79d10SqEowj5RBlNH/view?usp=sharing
+
 ## 🎯 Project Overview
 
 This application allows businesses to manage their production process digitally, covering the complete manufacturing workflow from Bill of Materials (BOM) to finished products.
