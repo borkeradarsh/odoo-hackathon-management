@@ -79,7 +79,7 @@ export function ProductForm({
       name: initialData?.name || '',
       type: initialData?.type || 'Raw Material',
       stock_on_hand: initialData?.stock_on_hand || 0,
-      min_stock_level: initialData?.min_stock_level || 10,
+  min_stock_level: initialData?.min_stock_level ?? undefined,
     },
   });
 
@@ -90,7 +90,7 @@ export function ProductForm({
         name: initialData.name || '',
         type: initialData.type || 'Raw Material',
         stock_on_hand: initialData.stock_on_hand || 0,
-        min_stock_level: initialData.min_stock_level || 10,
+  min_stock_level: initialData.min_stock_level ?? undefined,
       });
     } else if (open && !initialData) {
       // Reset to default values for new product
@@ -98,7 +98,7 @@ export function ProductForm({
         name: '',
         type: 'Raw Material',
         stock_on_hand: 0,
-        min_stock_level: 10,
+  min_stock_level: undefined,
       });
     }
   }, [open, initialData, form]);

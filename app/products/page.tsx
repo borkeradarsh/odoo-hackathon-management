@@ -178,7 +178,7 @@ export default function ProductsPage() {
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-extrabold tracking-tight text-sidebar-primary-foreground drop-shadow-lg">Products</h1>
+            <h1 className="text-3xl font-extrabold tracking-tight text-slate-800 drop-shadow-lg">Products</h1>
             <p className="text-sidebar-accent-foreground">
               Manage your product inventory and information.
             </p>
@@ -191,7 +191,7 @@ export default function ProductsPage() {
 
         <div className="bg-sidebar-accent border border-sidebar-border rounded-2xl shadow-xl">
           <div className="px-6 pt-6 pb-2 border-b border-sidebar-border">
-            <h2 className="text-xl font-bold text-sidebar-primary-foreground">Product List</h2>
+            <h2 className="text-xl font-bold text-slate-800 ">Product List</h2>
           </div>
           <div className="px-6 pb-6">
             {isLoading ? (
@@ -225,14 +225,14 @@ export default function ProductsPage() {
                 <TableBody>
                   {products.map((product) => (
                     <TableRow key={product.id} className="bg-sidebar-accent hover:bg-sidebar-ring/20 rounded-lg">
-                      <TableCell className="font-semibold text-sidebar-primary-foreground">{product.name}</TableCell>
+                      <TableCell className="font-semibold text-md px-4 text-slate-800">{product.name}</TableCell>
                       <TableCell className="text-sidebar-primary-foreground">
                         <Badge variant={product.type === 'Raw Material' ? 'secondary' : 'default'}>
                           {product.type}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-sidebar-primary-foreground">{product.stock_on_hand}</TableCell>
-                      <TableCell className="text-sidebar-primary-foreground">{product.min_stock_level}</TableCell>
+                      <TableCell className="text-slate-800">{product.stock_on_hand}</TableCell>
+                      <TableCell className="text-slate-800">{product.min_stock_level}</TableCell>
                       <TableCell>
                         {getStockStatus(product.stock_on_hand, product.min_stock_level)}
                       </TableCell>

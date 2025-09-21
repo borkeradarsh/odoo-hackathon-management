@@ -28,6 +28,13 @@ interface DashboardData {
   };
   recentOrders: RecentOrder[];
   stockAlerts: StockAlert[];
+  operatorAnalytics: Array<{
+    id: string;
+    name: string;
+    completed: number;
+    assigned: number;
+    in_progress: number;
+  }>;
 }
 
 export function useDashboardAnalytics() {

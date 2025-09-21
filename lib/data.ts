@@ -177,11 +177,69 @@ async function getFallbackDashboardAnalytics(supabase: Awaited<ReturnType<typeof
       console.warn('Could not fetch stock alerts:', error);
     }
 
+    // Fetch all operators from profiles table
+    let operators: Array<{ id: string; name: string }> = [];
+    try {
+      const { data: operatorData } = await supabase
+        .from('profiles')
+        .select('id, full_name, role')
+        .eq('role', 'operator');
+      operators = (operatorData || []).map((op: any) => ({ id: op.id, name: op.full_name || 'Operator' }));
+    } catch (error) {
+      console.warn('Could not fetch operators:', error);
+    }
+
+    // For each operator, fetch order stats
+    let operatorAnalytics: Array<{
+      id: string;
+      name: string;
+      completed: number;
+      assigned: number;
+      in_progress: number;
+    }> = [];
+    for (const op of operators) {
+      let completed = 0, assigned = 0, in_progress = 0;
+      try {
+        // Completed orders
+        const { count: completedCount } = await supabase
+          .from('work_orders')
+          .select('*', { count: 'exact', head: true })
+          .eq('operator_id', op.id)
+          .eq('status', 'completed');
+        completed = completedCount || 0;
+
+        // Assigned orders
+        const { count: assignedCount } = await supabase
+          .from('work_orders')
+          .select('*', { count: 'exact', head: true })
+          .eq('operator_id', op.id);
+        assigned = assignedCount || 0;
+
+        // In progress orders
+        const { count: inProgressCount } = await supabase
+          .from('work_orders')
+          .select('*', { count: 'exact', head: true })
+          .eq('operator_id', op.id)
+          .eq('status', 'in_progress');
+        in_progress = inProgressCount || 0;
+      } catch (error) {
+        console.warn(`Could not fetch order stats for operator ${op.id}:`, error);
+      }
+      operatorAnalytics.push({
+        id: op.id,
+        name: op.name,
+        completed,
+        assigned,
+        in_progress
+      });
+    }
+
     return {
       data: {
         kpis,
         recentOrders,
-        stockAlerts
+        stockAlerts,
+        operatorAnalytics
       }
     };
   } catch (error) {
