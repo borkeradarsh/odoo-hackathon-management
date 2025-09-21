@@ -42,19 +42,46 @@ export function useDashboardAnalytics() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+      useEffect(() => {
     const fetchData = async () => {
       // Reset state on new fetch
       setIsLoading(true);
       setError(null);
       try {
-        const response = await fetch('/api/dashboard/analytics');
+        const response = await fetch('/api/dashboard/analytics', {
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache',
+          },
+        });
         if (!response.ok) {
-          throw new Error('Network response was not ok');
+          throw new Error(`HTTP error! status: ${response.status}`);
         }
         const result = await response.json();
-        // The API may nest the data, so we access result.data if it exists
-        setData(result.data || result);
+        
+        // Handle both direct data and nested data structures
+        if (result.data) {
+          // If the result has a nested 'data' property
+          setData(result.data);
+        } else if (result.kpis) {
+          // If the result has the data structure directly
+          setData(result);
+        } else {
+          // Fallback with default structure
+          setData({
+            kpis: {
+              total_products: 0,
+              active_boms: 0,
+              in_progress_mos: 0,
+              pending_wos: 0,
+              low_stock_items: 0,
+              completed_this_month: 0
+            },
+            recentOrders: [],
+            stockAlerts: [],
+            operatorAnalytics: []
+          });
+        }
       } catch (err: unknown) {
         const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
         setError(errorMessage);

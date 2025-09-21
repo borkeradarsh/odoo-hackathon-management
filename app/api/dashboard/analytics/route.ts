@@ -9,6 +9,9 @@ import { getNoCacheHeaders } from '@/lib/api-utils';
 export async function GET() {
   try {
     const dashboardData = await getDashboardAnalytics();
+    
+    // Add debugging to see what we're returning
+    console.log('📊 Dashboard API Response:', JSON.stringify(dashboardData, null, 2));
 
     // The SQL query already formats the output as a single JSON object
     // under the key "dashboard_data". We return that directly.

@@ -90,7 +90,21 @@ async function getFallbackDashboardAnalytics(supabase: Awaited<ReturnType<typeof
       console.warn('Work orders table not accessible:', error);
     }
 
-    // Try to get low stock items count
+    // Try to get completed orders this month
+    try {
+      const startOfMonth = new Date();
+      startOfMonth.setDate(1);
+      startOfMonth.setHours(0, 0, 0, 0);
+      
+      const { count: completedThisMonthCount } = await supabase
+        .from('work_orders')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'completed')
+        .gte('updated_at', startOfMonth.toISOString());
+      kpis.completed_this_month = completedThisMonthCount || 0;
+    } catch (error) {
+      console.warn('Could not fetch completed orders this month:', error);
+    }
     try {
       // First, let's check what products exist
       const { data: allProducts, error: productsError } = await supabase
@@ -184,13 +198,23 @@ async function getFallbackDashboardAnalytics(supabase: Awaited<ReturnType<typeof
         .from('profiles')
         .select('id, full_name, role')
         .eq('role', 'operator');
-      operators = (operatorData || []).map((op: any) => ({ id: op.id, name: op.full_name || 'Operator' }));
+      
+      interface OperatorProfile {
+        id: string;
+        full_name: string | null;
+        role: string;
+      }
+      
+      operators = (operatorData || []).map((op: OperatorProfile) => ({ 
+        id: op.id, 
+        name: op.full_name || 'Operator' 
+      }));
     } catch (error) {
       console.warn('Could not fetch operators:', error);
     }
 
     // For each operator, fetch order stats
-    let operatorAnalytics: Array<{
+    const operatorAnalytics: Array<{
       id: string;
       name: string;
       completed: number;
