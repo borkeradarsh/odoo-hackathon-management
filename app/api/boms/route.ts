@@ -7,14 +7,17 @@ export async function GET() {
   try {
     const supabase = await createServer();
     
+    // Fetch BOMs with left joins to ensure we get BOMs even if products don't exist
     const { data: boms, error } = await supabase
       .from('boms')
       .select(`
         *,
-        product:products(id, name),
-        bom_items:bom_items(
-          *,
-          component:products(id, name)
+        product:products(id, name, type, stock_on_hand, min_stock_level),
+        bom_items(
+          id,
+          product_id,
+          quantity,
+          component:products(id, name, type, stock_on_hand, min_stock_level)
         )
       `)
       .order('created_at', { ascending: false });

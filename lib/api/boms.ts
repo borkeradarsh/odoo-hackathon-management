@@ -1,5 +1,3 @@
-import { BOM } from '@/types';
-
 const API_BASE_URL = process.env.NODE_ENV === 'production' 
   ? process.env.NEXT_PUBLIC_SITE_URL || ''
   : 'http://localhost:3000';
@@ -14,10 +12,17 @@ export interface CreateBomRequest {
   }[];
 }
 
-export interface BomWithRelations extends Omit<BOM, 'product' | 'bom_items'> {
+export interface BomWithRelations {
+  id: string;
+  name: string;
+  product_id: string;
+  created_at: string;
   product: {
     id: string;
     name: string;
+    type?: string;
+    stock_on_hand?: number;
+    min_stock_level?: number;
   };
   bom_items: Array<{
     id: string;
@@ -27,6 +32,9 @@ export interface BomWithRelations extends Omit<BOM, 'product' | 'bom_items'> {
     component: {
       id: string;
       name: string;
+      type?: string;
+      stock_on_hand?: number;
+      min_stock_level?: number;
     };
   }>;
 }

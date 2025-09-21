@@ -5,7 +5,7 @@ export interface WorkOrderWithOperator {
   mo_id: number;
   name: string;
   status: string;
-  assignee_id: string | null;
+  operator_id: string | null;
   created_at: string;
   updated_at: string;
   profiles?: {
@@ -24,25 +24,6 @@ export interface WorkOrderWithOperator {
   finished_product_name?: string | null;
 }
 
-interface WorkOrderFromDB {
-  id: string;
-  mo_id: number;
-  name: string;
-  status: string;
-  assignee_id: string | null;
-  created_at: string;
-  updated_at: string;
-  profiles?: { full_name: string } | null;
-  manufacturing_orders?: {
-    id: number;
-    product_id: number;
-    products?: {
-      id: number;
-      name: string;
-    } | null;
-  } | null;
-}
-
 /**
  * Fetches all work orders with operator information for Admin view
  * Joins with profiles table to get operator full names
@@ -58,16 +39,11 @@ export async function getAllWorkOrders(): Promise<{
       .from('work_orders')
       .select(`
         *,
-        profiles (
-          full_name
-        ),
-        manufacturing_orders!work_orders_mo_id_fkey (
+        profiles(full_name),
+        manufacturing_orders!work_orders_mo_id_fkey(
           id,
           product_id,
-          products (
-            id,
-            name
-          )
+          products(id, name)
         )
       `)
       .order('created_at', { ascending: false });
@@ -77,18 +53,19 @@ export async function getAllWorkOrders(): Promise<{
       return { data: null, error: new Error(error.message) };
     }
 
-    // Transform the data to include operator information
-    const workOrdersWithOperators: WorkOrderWithOperator[] = (data as WorkOrderFromDB[] || []).map((wo) => ({
+    // Transform the data to include operator information - QUICK FIX
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const workOrdersWithOperators: WorkOrderWithOperator[] = (data || []).map((wo: any) => ({
       id: wo.id,
       mo_id: wo.mo_id,
       name: wo.name,
       status: wo.status,
-      assignee_id: wo.assignee_id,
+      operator_id: wo.operator_id,
       created_at: wo.created_at,
       updated_at: wo.updated_at,
-      profiles: wo.profiles || null,
-      manufacturing_orders: wo.manufacturing_orders || null,
-      operator_name: wo.profiles?.full_name || null,
+      profiles: wo.profiles,
+      manufacturing_orders: wo.manufacturing_orders,
+      operator_name: wo.profiles?.full_name?.split(' ')[0] || null,
       operator_full_name: wo.profiles?.full_name || null,
       finished_product_name: wo.manufacturing_orders?.products?.name || null
     }));

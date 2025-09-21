@@ -30,14 +30,24 @@ import {
 // Types
 interface WorkOrder {
   id: number;
+  mo_id: number;
+  name: string;
   status: string;
   created_at: string;
-  updated_at?: string;
-  manufacturing_order_id?: number;
-  component?: {
+  profiles: {
+    full_name: string;
+  } | null;
+  manufacturing_orders: {
     id: number;
-    name: string;
-  };
+    products: {
+      id: number;
+      name: string;
+    } | null;
+    product_id: number;
+  } | null;
+  operator_name: string;
+  operator_full_name: string;
+  finished_product_name: string;
 }
 
 // Fetcher function for SWR with cache-busting
@@ -57,7 +67,7 @@ export default function MyOrdersPage() {
     data, 
     isLoading,
     mutate 
-  } = useSWR('/api/my-work-orders', fetcher, {
+  } = useSWR('/api/work-orders/my-orders', fetcher, {
     revalidateOnFocus: true,       // Refresh when tab becomes active
     revalidateOnReconnect: true,   // Refresh on network reconnect
     refreshInterval: 0,            // No automatic polling
@@ -232,11 +242,10 @@ export default function MyOrdersPage() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>WO #</TableHead>
-                      <TableHead>Component</TableHead>
-                      <TableHead>Manufacturing Order</TableHead>
+                      <TableHead>Finished Product</TableHead>
+                      <TableHead>MO #</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead>Assigned Date</TableHead>
-                      <TableHead>Last Updated</TableHead>
+                      <TableHead>Created</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -251,16 +260,16 @@ export default function MyOrdersPage() {
                           <TableCell>
                             <div>
                               <div className="font-medium">
-                                {wo.component?.name || 'Unknown Component'}
+                                {wo.finished_product_name || 'Unknown Product'}
                               </div>
                               <div className="text-sm text-muted-foreground">
-                                Component ID: {wo.component?.id || 'N/A'}
+                                Finished Product
                               </div>
                             </div>
                           </TableCell>
                           <TableCell>
                             <Badge variant="outline">
-                              MO-{wo.manufacturing_order_id?.toString().padStart(4, '0') || 'N/A'}
+                              MO-{wo.mo_id.toString().padStart(4, '0')}
                             </Badge>
                           </TableCell>
                           <TableCell>
@@ -271,9 +280,6 @@ export default function MyOrdersPage() {
                           </TableCell>
                           <TableCell>
                             {new Date(wo.created_at).toLocaleDateString()}
-                          </TableCell>
-                          <TableCell>
-                            {wo.updated_at ? new Date(wo.updated_at).toLocaleDateString() : 'Not updated'}
                           </TableCell>
                           <TableCell>
                             {wo.status.toLowerCase() !== 'done' ? (

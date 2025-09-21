@@ -236,7 +236,7 @@ export default function WorkOrdersPage() {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => handleOperatorClick({ 
-                                  id: wo.assignee_id!, 
+                                  id: wo.operator_id!, 
                                   full_name: wo.profiles?.full_name || '' 
                                 })}
                                 className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 p-1 h-auto"

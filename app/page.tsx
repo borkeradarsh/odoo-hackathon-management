@@ -2,14 +2,25 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/components/auth/auth-provider';
 
 export default function Home() {
   const router = useRouter();
+  const { user, profile, loading } = useAuth();
 
   useEffect(() => {
-    // Let the middleware handle the redirect logic
-    router.push('/dashboard');
-  }, [router]);
+    if (!loading && user && profile) {
+      // Redirect based on user role
+      if (profile.role === 'operator') {
+        router.push('/operator/my-orders');
+      } else {
+        router.push('/dashboard');
+      }
+    } else if (!loading && !user) {
+      // User not authenticated, redirect to login
+      router.push('/auth/login');
+    }
+  }, [router, user, profile, loading]);
 
   return (
     <div className="min-h-screen flex items-center justify-center">

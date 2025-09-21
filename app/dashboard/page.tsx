@@ -74,7 +74,7 @@ const getStockAlertColor = (current: number, minimum: number) => {
 // Loading spinner component
 function DashboardSpinner() {
   return (
-    <ProtectedRoute allowedRoles={['admin', 'operator']}>
+    <ProtectedRoute allowedRoles={['admin']}>
       <Sidebar>
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
@@ -90,7 +90,7 @@ function DashboardSpinner() {
 // Error component
 function DashboardError({ error }: { error: string }) {
   return (
-    <ProtectedRoute allowedRoles={['admin', 'operator']}>
+    <ProtectedRoute allowedRoles={['admin']}>
       <Sidebar>
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
@@ -129,7 +129,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <ProtectedRoute allowedRoles={['admin', 'operator']}>
+    <ProtectedRoute allowedRoles={['admin']}>
       <Sidebar>
         <div className="space-y-6">
           {/* Header */}

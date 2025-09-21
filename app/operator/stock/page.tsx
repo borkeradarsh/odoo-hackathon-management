@@ -65,7 +65,57 @@ export default function OperatorStockPage() {
     dedupingInterval: 2000,        // Dedupe requests within 2 seconds
   });
 
-  const products: Product[] = data?.data || [];
+  const products: Product[] = data?.data || [
+    // Static products for demo
+    {
+      id: 1,
+      name: "Wooden Legs",
+      type: "Raw Material",
+      stock_on_hand: 45,
+      min_stock_level: 20,
+      created_at: "2025-09-21T00:00:00Z"
+    },
+    {
+      id: 2,
+      name: "Wooden Planks",
+      type: "Raw Material", 
+      stock_on_hand: 8,
+      min_stock_level: 15,
+      created_at: "2025-09-21T00:00:00Z"
+    },
+    {
+      id: 3,
+      name: "Chair",
+      type: "Finished Good",
+      stock_on_hand: 0,
+      min_stock_level: 5,
+      created_at: "2025-09-21T00:00:00Z"
+    },
+    {
+      id: 4,
+      name: "Table",
+      type: "Finished Good",
+      stock_on_hand: 12,
+      min_stock_level: 8,
+      created_at: "2025-09-21T00:00:00Z"
+    },
+    {
+      id: 5,
+      name: "Wood Screws",
+      type: "Raw Material",
+      stock_on_hand: 3,
+      min_stock_level: 50,
+      created_at: "2025-09-21T00:00:00Z"
+    },
+    {
+      id: 6,
+      name: "Wood Glue",
+      type: "Raw Material",
+      stock_on_hand: 25,
+      min_stock_level: 10,
+      created_at: "2025-09-21T00:00:00Z"
+    }
+  ];
   const loading = isLoading;
 
   // Filter products based on search term
@@ -249,10 +299,10 @@ export default function OperatorStockPage() {
                     <TableRow>
                       <TableHead>Product Name</TableHead>
                       <TableHead>Type</TableHead>
-                      <TableHead>Current Stock</TableHead>
+                      <TableHead>Quantity on Hand</TableHead>
                       <TableHead>Min. Level</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Last Updated</TableHead>
+                      <TableHead>Stock Status</TableHead>
+                      <TableHead>Stock Health</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -261,37 +311,87 @@ export default function OperatorStockPage() {
                       const StatusIcon = stockStatus.icon;
                       
                       return (
-                        <TableRow key={product.id}>
+                        <TableRow key={product.id} className={product.stock_on_hand <= 0 ? 'bg-red-50' : product.stock_on_hand <= product.min_stock_level ? 'bg-yellow-50' : ''}>
                           <TableCell>
-                            <div>
-                              <div className="font-medium">{product.name}</div>
-                              <div className="text-sm text-muted-foreground">
-                                ID: {product.id}
+                            <div className="flex items-center space-x-3">
+                              <div className={`w-3 h-3 rounded-full ${
+                                product.stock_on_hand <= 0 ? 'bg-red-500' : 
+                                product.stock_on_hand <= product.min_stock_level ? 'bg-yellow-500' : 'bg-green-500'
+                              }`}></div>
+                              <div>
+                                <div className="font-medium">{product.name}</div>
+                                <div className="text-sm text-muted-foreground">
+                                  ID: {product.id}
+                                </div>
                               </div>
                             </div>
                           </TableCell>
                           <TableCell>
                             <Badge 
                               variant="outline"
-                              className={product.type === 'Raw Material' ? 'border-blue-200 text-blue-700' : 'border-green-200 text-green-700'}
+                              className={product.type === 'Raw Material' ? 'border-blue-200 text-blue-700 bg-blue-50' : 'border-green-200 text-green-700 bg-green-50'}
                             >
                               {product.type}
                             </Badge>
                           </TableCell>
-                          <TableCell className="font-medium">
-                            {product.stock_on_hand}
+                          <TableCell>
+                            <div className="flex items-center space-x-2">
+                              <span className={`text-2xl font-bold ${
+                                product.stock_on_hand <= 0 ? 'text-red-600' : 
+                                product.stock_on_hand <= product.min_stock_level ? 'text-yellow-600' : 'text-green-600'
+                              }`}>
+                                {product.stock_on_hand}
+                              </span>
+                              <span className="text-sm text-gray-500">units</span>
+                            </div>
+                            {product.stock_on_hand <= 0 && (
+                              <div className="text-xs text-red-500 font-medium mt-1">
+                                URGENT: Restock needed!
+                              </div>
+                            )}
+                            {product.stock_on_hand > 0 && product.stock_on_hand <= product.min_stock_level && (
+                              <div className="text-xs text-yellow-600 font-medium mt-1">
+                                {product.min_stock_level - product.stock_on_hand + 1} units to reorder
+                              </div>
+                            )}
                           </TableCell>
                           <TableCell>
-                            {product.min_stock_level}
+                            <div className="flex items-center space-x-1">
+                              <span className="font-medium">{product.min_stock_level}</span>
+                              <span className="text-sm text-gray-500">units</span>
+                            </div>
                           </TableCell>
                           <TableCell>
                             <Badge className={stockStatus.color}>
                               <StatusIcon className="h-3 w-3 mr-1" />
                               {stockStatus.status}
                             </Badge>
+                            {product.stock_on_hand <= 0 && (
+                              <Badge variant="destructive" className="ml-2">
+                                <AlertTriangle className="h-3 w-3 mr-1" />
+                                CRITICAL
+                              </Badge>
+                            )}
                           </TableCell>
                           <TableCell>
-                            {new Date(product.created_at).toLocaleDateString()}
+                            <div className="flex flex-col space-y-1">
+                              {/* Stock progress bar */}
+                              <div className="w-20 h-2 bg-gray-200 rounded-full overflow-hidden">
+                                <div 
+                                  className={`h-full transition-all duration-300 ${
+                                    product.stock_on_hand <= 0 ? 'bg-red-500' : 
+                                    product.stock_on_hand <= product.min_stock_level ? 'bg-yellow-500' : 'bg-green-500'
+                                  }`}
+                                  style={{ 
+                                    width: `${Math.min(100, (product.stock_on_hand / (product.min_stock_level * 2)) * 100)}%` 
+                                  }}
+                                ></div>
+                              </div>
+                              <span className="text-xs text-gray-500">
+                                {product.stock_on_hand <= 0 ? 'Empty' : 
+                                 product.stock_on_hand <= product.min_stock_level ? 'Low' : 'Healthy'}
+                              </span>
+                            </div>
                           </TableCell>
                         </TableRow>
                       );

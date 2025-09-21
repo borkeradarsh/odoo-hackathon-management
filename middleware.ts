@@ -61,10 +61,22 @@ export async function middleware(request: NextRequest) {
     error
   } = await supabase.auth.getUser();
 
+  // Get user profile for role-based redirects
+  let userProfile = null;
+  if (user) {
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+    userProfile = profileData;
+  }
+
   console.log('Middleware Debug:', {
     pathname: request.nextUrl.pathname,
     hasUser: !!user,
     userId: user?.id || null,
+    userRole: userProfile?.role || null,
     authError: error?.message || null
   });
 
@@ -76,10 +88,30 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 
-  // If user is signed in and trying to access login page, redirect to dashboard
-  if (user && request.nextUrl.pathname === '/auth/login') {
-    console.log('Redirecting authenticated user from login to dashboard');
-    return NextResponse.redirect(new URL('/dashboard', request.url));
+  // If user is signed in and trying to access login page, redirect based on role
+  if (user && userProfile && request.nextUrl.pathname === '/auth/login') {
+    console.log('Redirecting authenticated user from login based on role:', userProfile.role);
+    if (userProfile.role === 'operator') {
+      return NextResponse.redirect(new URL('/operator/my-orders', request.url));
+    } else {
+      return NextResponse.redirect(new URL('/dashboard', request.url));
+    }
+  }
+
+  // If user is signed in and accessing root, redirect based on role
+  if (user && userProfile && request.nextUrl.pathname === '/') {
+    console.log('Redirecting authenticated user from root based on role:', userProfile.role);
+    if (userProfile.role === 'operator') {
+      return NextResponse.redirect(new URL('/operator/my-orders', request.url));
+    } else {
+      return NextResponse.redirect(new URL('/dashboard', request.url));
+    }
+  }
+
+  // Restrict dashboard access to admins only
+  if (user && userProfile && request.nextUrl.pathname === '/dashboard' && userProfile.role === 'operator') {
+    console.log('Redirecting operator away from dashboard to work orders');
+    return NextResponse.redirect(new URL('/operator/my-orders', request.url));
   }
 
   // Allow access to logout page regardless of auth status
