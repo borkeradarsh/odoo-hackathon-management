@@ -2,7 +2,8 @@
 
 A comprehensive digital manufacturing and production management application built for a 24-hour hackathon challenge.
 
-# working mp4 videolink: https://drive.google.com/file/d/1rgyq_6Sxh8fWJ5D79d10SqEowj5RBlNH/view?usp=sharing
+# working mp4 videolink:
+https://drive.google.com/file/d/1rgyq_6Sxh8fWJ5D79d10SqEowj5RBlNH/view?usp=sharing
 
 ## 🎯 Project Overview
 
