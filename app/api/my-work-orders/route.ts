@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createServer } from '@/lib/supabase/server';
+import { getNoCacheHeaders } from '@/lib/api-utils';
 
 export async function GET() {
   try {
@@ -85,6 +86,8 @@ export async function GET() {
     return NextResponse.json({
       success: true,
       data: data || []
+    }, {
+      headers: getNoCacheHeaders()
     });
 
   } catch (error) {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServer } from '@/lib/supabase/server';
+import { getNoCacheHeaders } from '@/lib/api-utils';
 
 // GET: Fetch all BOMs with product information
 export async function GET() {
@@ -26,7 +27,9 @@ export async function GET() {
       );
     }
 
-    return NextResponse.json({ boms });
+    return NextResponse.json({ boms }, {
+      headers: getNoCacheHeaders()
+    });
   } catch (error) {
     console.error('Unexpected error fetching BOMs:', error);
     return NextResponse.json(

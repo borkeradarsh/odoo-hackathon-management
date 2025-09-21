@@ -18,8 +18,13 @@ import { CreateManufacturingOrderForm } from '@/components/manufacturing/CreateM
 import { Product, ManufacturingOrder } from '@/types';
 import { Sidebar } from '@/components/layout/sidebar';
 
-// Fetcher function for SWR
-const fetcher = (url: string) => fetch(url).then((res) => {
+// Fetcher function for SWR with cache-busting
+const fetcher = (url: string) => fetch(url, {
+  cache: 'no-store',
+  headers: {
+    'Cache-Control': 'no-cache',
+  }
+}).then((res) => {
   if (!res.ok) {
     throw new Error('Failed to fetch');
   }
@@ -29,19 +34,29 @@ const fetcher = (url: string) => fetch(url).then((res) => {
 export default function ManufacturingOrdersPage() {
   const [formOpen, setFormOpen] = useState(false);
 
-  // Fetch manufacturing orders using SWR
+  // Fetch manufacturing orders using SWR with proper revalidation
   const { 
     data: manufacturingOrdersData, 
     error: moError, 
     isLoading: moLoading 
-  } = useSWR('/api/manufacturing-orders', fetcher);
+  } = useSWR('/api/manufacturing-orders', fetcher, {
+    revalidateOnFocus: true,       // Refresh when tab becomes active
+    revalidateOnReconnect: true,   // Refresh on network reconnect
+    refreshInterval: 0,            // No automatic polling
+    dedupingInterval: 2000,        // Dedupe requests within 2 seconds
+  });
 
   // Fetch products for the form
   const { 
     data: productsData, 
     error: productsError, 
     isLoading: productsLoading 
-  } = useSWR('/api/products', fetcher);
+  } = useSWR('/api/products', fetcher, {
+    revalidateOnFocus: true,       // Refresh when tab becomes active
+    revalidateOnReconnect: true,   // Refresh on network reconnect
+    refreshInterval: 0,            // No automatic polling
+    dedupingInterval: 2000,        // Dedupe requests within 2 seconds
+  });
 
   const manufacturingOrders: ManufacturingOrder[] = manufacturingOrdersData?.data || [];
   const products: Product[] = productsData?.products || [];

@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 // This is the function that contains your complex SQL query.
 // Make sure the path is correct for your project structure.
 import { getDashboardAnalytics } from '@/lib/data';
+import { getNoCacheHeaders } from '@/lib/api-utils';
 
 export async function GET() {
   try {
@@ -11,7 +12,9 @@ export async function GET() {
 
     // The SQL query already formats the output as a single JSON object
     // under the key "dashboard_data". We return that directly.
-    return NextResponse.json(dashboardData);
+    return NextResponse.json(dashboardData, {
+      headers: getNoCacheHeaders()
+    });
 
   } catch (error: unknown) {
     // Log the detailed error on the server for debugging

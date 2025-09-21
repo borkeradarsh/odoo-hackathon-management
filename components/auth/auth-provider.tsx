@@ -29,6 +29,35 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Get initial session
+    const getInitialSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+
+      if (currentUser) {
+        // Fetch the user's profile from the 'profiles' table
+        const { data: profileData, error } = await supabase
+          .from('profiles')
+          .select('id, full_name, role')
+          .eq('id', currentUser.id)
+          .single();
+
+        if (error) {
+          console.error('Error fetching profile:', error);
+          setProfile(null);
+        } else {
+          setProfile(profileData as Profile);
+        }
+      } else {
+        setProfile(null);
+      }
+      setLoading(false);
+    };
+
+    getInitialSession();
+
+    // Listen for auth changes
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
       setLoading(true);
       const currentUser = session?.user ?? null;

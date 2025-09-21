@@ -1,5 +1,6 @@
 import { createServer } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
+import { getNoCacheHeaders } from '@/lib/api-utils';
 
 export async function POST(request: Request) {
   try {
@@ -23,7 +24,9 @@ export async function POST(request: Request) {
     }
 
     // SUCCESS PATH: Return a 200 OK status with the new MO ID
-    return NextResponse.json({ success: true, new_mo_id: data });
+    return NextResponse.json({ success: true, new_mo_id: data }, {
+      headers: getNoCacheHeaders()
+    });
 
   } catch (err: unknown) {
     // This catches all errors and returns a clear 500 error

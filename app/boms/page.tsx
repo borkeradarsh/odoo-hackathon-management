@@ -57,8 +57,13 @@ interface ComponentItem {
   product?: Product;
 }
 
-// Fetcher function for SWR
-const fetcher = (url: string) => fetch(url).then((res) => {
+// Fetcher function for SWR with cache-busting
+const fetcher = (url: string) => fetch(url, {
+  cache: 'no-store',
+  headers: {
+    'Cache-Control': 'no-cache',
+  }
+}).then((res) => {
   if (!res.ok) {
     throw new Error('Failed to fetch');
   }
@@ -97,19 +102,29 @@ export default function BomsPage() {
     setTimeout(() => setNotification(null), 5000);
   };
 
-  // Fetch BOMs using SWR
+  // Fetch BOMs using SWR with proper revalidation
   const { 
     data: bomsData, 
     error: bomsError, 
     isLoading: bomsLoading 
-  } = useSWR('/api/boms', fetcher);
+  } = useSWR('/api/boms', fetcher, {
+    revalidateOnFocus: true,       // Refresh when tab becomes active
+    revalidateOnReconnect: true,   // Refresh on network reconnect
+    refreshInterval: 0,            // No automatic polling
+    dedupingInterval: 2000,        // Dedupe requests within 2 seconds
+  });
 
   // Fetch products for dropdowns
   const { 
     data: productsData, 
     error: productsError, 
     isLoading: productsLoading 
-  } = useSWR('/api/products', fetcher);
+  } = useSWR('/api/products', fetcher, {
+    revalidateOnFocus: true,       // Refresh when tab becomes active
+    revalidateOnReconnect: true,   // Refresh on network reconnect
+    refreshInterval: 0,            // No automatic polling
+    dedupingInterval: 2000,        // Dedupe requests within 2 seconds
+  });
 
   const boms: BomWithRelations[] = bomsData?.boms || [];
   const products: Product[] = productsData?.products || [];

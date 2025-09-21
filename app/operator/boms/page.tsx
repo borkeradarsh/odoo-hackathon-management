@@ -61,8 +61,13 @@ interface BOM {
   bom_items?: BOMLine[];
 }
 
-// Fetcher function for SWR
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+// Fetcher function for SWR with cache-busting
+const fetcher = (url: string) => fetch(url, {
+  cache: 'no-store',
+  headers: {
+    'Cache-Control': 'no-cache',
+  }
+}).then((res) => res.json());
 
 export default function OperatorBOMsPage() {
   // State for UI interactions
@@ -70,14 +75,16 @@ export default function OperatorBOMsPage() {
   const [selectedBOM, setSelectedBOM] = useState<BOM | null>(null);
   const [bomDetailOpen, setBomDetailOpen] = useState(false);
 
-  // Use SWR with disabled automatic re-fetching
+  // Use SWR with proper revalidation for fresh data
   const { 
     data, 
     isLoading,
     mutate 
   } = useSWR('/api/boms', fetcher, {
-    revalidateOnFocus: false,      // Prevents re-fetching when you focus the tab
-    revalidateOnReconnect: false,  // Prevents re-fetching on network reconnect
+    revalidateOnFocus: true,       // Refresh when tab becomes active
+    revalidateOnReconnect: true,   // Refresh on network reconnect
+    refreshInterval: 0,            // No automatic polling
+    dedupingInterval: 2000,        // Dedupe requests within 2 seconds
   });
 
   const boms: BOM[] = data?.boms || [];

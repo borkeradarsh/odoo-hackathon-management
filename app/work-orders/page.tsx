@@ -43,8 +43,13 @@ interface OperatorAnalytics {
   completed: number;
 }
 
-// Fetcher function for SWR
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+// Fetcher function for SWR with cache-busting
+const fetcher = (url: string) => fetch(url, {
+  cache: 'no-store',
+  headers: {
+    'Cache-Control': 'no-cache',
+  }
+}).then((res) => res.json());
 
 export default function WorkOrdersPage() {
   // State for UI interactions
@@ -56,8 +61,10 @@ export default function WorkOrdersPage() {
     isLoading,
     mutate 
   } = useSWR('/api/work-orders', fetcher, {
-    revalidateOnFocus: false,      // Prevents re-fetching when you focus the tab
-    revalidateOnReconnect: false,  // Prevents re-fetching on network reconnect
+    revalidateOnFocus: true,       // Refresh when tab becomes active
+    revalidateOnReconnect: true,   // Refresh on network reconnect
+    refreshInterval: 0,            // No automatic polling
+    dedupingInterval: 2000,        // Dedupe requests within 2 seconds
   });
 
   const workOrders: WorkOrderWithOperator[] = data?.data || [];

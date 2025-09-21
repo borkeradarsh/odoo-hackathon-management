@@ -40,8 +40,13 @@ interface Product {
   created_at: string;
 }
 
-// Fetcher function for SWR
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
+// Fetcher function for SWR with cache-busting
+const fetcher = (url: string) => fetch(url, {
+  cache: 'no-store',
+  headers: {
+    'Cache-Control': 'no-cache',
+  }
+}).then((res) => res.json());
 
 export default function OperatorStockPage() {
   // State for UI interactions
@@ -54,8 +59,10 @@ export default function OperatorStockPage() {
     isLoading,
     mutate 
   } = useSWR('/api/products', fetcher, {
-    revalidateOnFocus: false,      // Prevents re-fetching when you focus the tab
-    revalidateOnReconnect: false,  // Prevents re-fetching on network reconnect
+    revalidateOnFocus: true,       // Refresh when tab becomes active
+    revalidateOnReconnect: true,   // Refresh on network reconnect
+    refreshInterval: 0,            // No automatic polling
+    dedupingInterval: 2000,        // Dedupe requests within 2 seconds
   });
 
   const products: Product[] = data?.data || [];

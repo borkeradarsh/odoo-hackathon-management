@@ -37,8 +37,13 @@ type ProductFormData = {
   min_stock_level: number;
 };
 
-// Fetcher function for SWR
-const fetcher = (url: string) => fetch(url).then((res) => {
+// Fetcher function for SWR with cache-busting
+const fetcher = (url: string) => fetch(url, {
+  cache: 'no-store',
+  headers: {
+    'Cache-Control': 'no-cache',
+  }
+}).then((res) => {
   if (!res.ok) {
     throw new Error('Failed to fetch');
   }
@@ -52,12 +57,17 @@ export default function ProductsPage() {
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Fetch products using SWR
+  // Fetch products using SWR with proper revalidation
   const { 
     data: productsData, 
     error, 
     isLoading 
-  } = useSWR('/api/products', fetcher);
+  } = useSWR('/api/products', fetcher, {
+    revalidateOnFocus: true,       // Refresh when tab becomes active
+    revalidateOnReconnect: true,   // Refresh on network reconnect
+    refreshInterval: 0,            // No automatic polling
+    dedupingInterval: 2000,        // Dedupe requests within 2 seconds
+  });
 
   const products: Product[] = productsData?.products || [];
 

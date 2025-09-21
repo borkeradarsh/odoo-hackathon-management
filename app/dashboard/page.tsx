@@ -1,5 +1,8 @@
 "use client";
 
+// Force dynamic rendering for real-time dashboard data
+export const dynamic = 'force-dynamic';
+
 import { useDashboardAnalytics } from '@/hooks/use-dashboard-analytics';
 import { ProtectedRoute } from '@/components/auth/protected-route';
 import { Sidebar } from '@/components/layout/sidebar';
