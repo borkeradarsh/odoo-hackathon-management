@@ -15,6 +15,27 @@ export async function GET() {
       );
     }
 
+    // Verify user role
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+
+    if (profileError || !profile) {
+      return NextResponse.json(
+        { error: 'Profile not found' },
+        { status: 403 }
+      );
+    }
+
+    if (profile.role !== 'operator' && profile.role !== 'admin') {
+      return NextResponse.json(
+        { error: 'Insufficient permissions' },
+        { status: 403 }
+      );
+    }
+
     // Call the PostgreSQL function to get work orders for the current user
     // The function automatically filters by the authenticated user's ID
     const { data, error } = await supabase.rpc('get_my_work_orders');

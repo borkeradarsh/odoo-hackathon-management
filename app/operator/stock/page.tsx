@@ -109,7 +109,7 @@ export default function OperatorStockPage() {
   };
 
   return (
-    <ProtectedRoute allowedRoles={['operator']}>
+    <ProtectedRoute allowedRoles={['operator', 'admin']}>
       <Sidebar>
         <div className="space-y-6">
           {/* Header */}

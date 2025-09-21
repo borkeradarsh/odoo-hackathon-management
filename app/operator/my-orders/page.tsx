@@ -32,9 +32,9 @@ interface WorkOrder {
   id: number;
   status: string;
   created_at: string;
-  updated_at: string;
-  manufacturing_order_id: number;
-  component: {
+  updated_at?: string;
+  manufacturing_order_id?: number;
+  component?: {
     id: number;
     name: string;
   };
@@ -76,23 +76,29 @@ export default function MyOrdersPage() {
         method: 'PATCH',
       });
       
+      const responseData = await response.json();
+      
       if (response.ok) {
         setAlert({ type: 'success', message: 'Work order completed successfully!' });
         refreshWorkOrders(); // Refresh the list
       } else {
-        setAlert({ type: 'error', message: 'Failed to complete work order' });
+        console.error('API Error:', responseData);
+        setAlert({ 
+          type: 'error', 
+          message: `Failed to complete work order: ${responseData.details || responseData.error || 'Unknown error'}` 
+        });
       }
     } catch (error) {
       console.error('Error completing work order:', error);
-      setAlert({ type: 'error', message: 'Failed to complete work order' });
+      setAlert({ type: 'error', message: 'Failed to complete work order: Network error' });
     }
   };
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
-      case 'in_progress':
+      case 'in progress':
         return 'bg-blue-100 text-blue-600';
-      case 'completed':
+      case 'done':
         return 'bg-green-100 text-green-600';
       case 'pending':
         return 'bg-yellow-100 text-yellow-600';
@@ -105,9 +111,9 @@ export default function MyOrdersPage() {
 
   const getStatusIcon = (status: string) => {
     switch (status.toLowerCase()) {
-      case 'in_progress':
+      case 'in progress':
         return Clock;
-      case 'completed':
+      case 'done':
         return CheckCircle;
       case 'pending':
         return AlertCircle;
@@ -119,13 +125,13 @@ export default function MyOrdersPage() {
   // Calculate statistics
   const stats = {
     total: workOrders.length,
-    pending: workOrders.filter((wo: WorkOrder) => wo.status === 'pending').length,
-    in_progress: workOrders.filter((wo: WorkOrder) => wo.status === 'in_progress').length,
-    completed: workOrders.filter((wo: WorkOrder) => wo.status === 'completed').length,
+    pending: workOrders.filter((wo: WorkOrder) => wo.status.toLowerCase() === 'pending').length,
+    in_progress: workOrders.filter((wo: WorkOrder) => wo.status.toLowerCase() === 'in progress').length,
+    completed: workOrders.filter((wo: WorkOrder) => wo.status.toLowerCase() === 'done').length,
   };
 
   return (
-    <ProtectedRoute allowedRoles={['operator']}>
+    <ProtectedRoute allowedRoles={['operator', 'admin']}>
       <Sidebar>
         <div className="space-y-6">
           {/* Header */}
@@ -237,31 +243,33 @@ export default function MyOrdersPage() {
                           </TableCell>
                           <TableCell>
                             <div>
-                              <div className="font-medium">{wo.component.name}</div>
+                              <div className="font-medium">
+                                {wo.component?.name || 'Unknown Component'}
+                              </div>
                               <div className="text-sm text-muted-foreground">
-                                Component ID: {wo.component.id}
+                                Component ID: {wo.component?.id || 'N/A'}
                               </div>
                             </div>
                           </TableCell>
                           <TableCell>
                             <Badge variant="outline">
-                              MO-{wo.manufacturing_order_id.toString().padStart(4, '0')}
+                              MO-{wo.manufacturing_order_id?.toString().padStart(4, '0') || 'N/A'}
                             </Badge>
                           </TableCell>
                           <TableCell>
                             <Badge className={getStatusColor(wo.status)}>
                               <StatusIcon className="h-3 w-3 mr-1" />
-                              {wo.status.replace('_', ' ')}
+                              {wo.status}
                             </Badge>
                           </TableCell>
                           <TableCell>
                             {new Date(wo.created_at).toLocaleDateString()}
                           </TableCell>
                           <TableCell>
-                            {new Date(wo.updated_at).toLocaleDateString()}
+                            {wo.updated_at ? new Date(wo.updated_at).toLocaleDateString() : 'Not updated'}
                           </TableCell>
                           <TableCell>
-                            {wo.status !== 'completed' ? (
+                            {wo.status.toLowerCase() !== 'done' ? (
                               <Button
                                 size="sm"
                                 onClick={() => handleCompleteWorkOrder(wo.id)}

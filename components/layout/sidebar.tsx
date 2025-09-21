@@ -33,6 +33,7 @@ const navItems: NavItem[] = [
     title: 'Dashboard',
     href: '/dashboard',
     icon: LayoutDashboard,
+    roles: ['admin'],
   },
   {
     title: 'Products',
@@ -59,8 +60,8 @@ const navItems: NavItem[] = [
     roles: ['admin'],
   },
   {
-    title: 'Stock Management',
-    href: '/stock',
+    title: 'Stock Ledger',
+    href: '/stock-ledger',
     icon: TrendingUp,
     roles: ['admin'],
   },

@@ -12,6 +12,22 @@ export async function GET(request: Request) {
     const supabase = await createServer();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
+      // Get user profile to determine redirect based on role
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single();
+        
+        // Redirect based on role
+        if (profile?.role === 'operator') {
+          return NextResponse.redirect(`${origin}/operator/my-orders`);
+        } else {
+          return NextResponse.redirect(`${origin}/dashboard`);
+        }
+      }
       return NextResponse.redirect(`${origin}${next}`);
     }
   }

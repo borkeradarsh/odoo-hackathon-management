@@ -245,3 +245,25 @@ export async function createBom(bomData: unknown) {
 
   return newBom;
 }
+
+// Stock Ledger function
+export async function getStockLedger() {
+  const supabase = await createServer();
+  
+  try {
+    const { data, error } = await supabase
+      .from('stock_ledger')
+      .select('*, products(name)')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching stock ledger:', error);
+      throw new Error('Failed to fetch stock ledger data');
+    }
+
+    return { data, error: null };
+  } catch (error) {
+    console.error('Unexpected error in getStockLedger:', error);
+    return { data: null, error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+}
