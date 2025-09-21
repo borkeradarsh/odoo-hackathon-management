@@ -4,6 +4,8 @@
 export const dynamic = 'force-dynamic';
 
 import { useDashboardAnalytics } from '@/hooks/use-dashboard-analytics';
+import { useAuth } from '@/components/auth/auth-provider';
+import { OperatorAnalytics } from '@/components/dashboard/operator-analytics';
 import { ProtectedRoute } from '@/components/auth/protected-route';
 import { Sidebar } from '@/components/layout/sidebar';
 import { PageHeader } from '@/components/layout/page-header';
@@ -114,6 +116,8 @@ function DashboardError({ error }: { error: string }) {
 
 export default function DashboardPage() {
   const { data, isLoading, error } = useDashboardAnalytics();
+  const { profile } = useAuth();
+  const userRole = profile?.role;
 
   if (isLoading) {
     return <DashboardSpinner />;
@@ -138,14 +142,6 @@ export default function DashboardPage() {
               title="Manufacturing Dashboard"
               description="Overview of production operations and key metrics"
             />
-            <Button 
-              onClick={() => window.location.reload()}
-              variant="outline"
-              size="sm"
-            >
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Refresh
-            </Button>
           </div>
 
           {/* KPI Cards */}
@@ -155,38 +151,48 @@ export default function DashboardPage() {
               value={data.kpis.total_products}
               description="Products in inventory"
               icon={Package}
+              className='text-slate-800 bg-emerald-100'
             />
-            <StatsCard
+            <StatsCard className='text-slate-800'
               title="Active BOMs"
               value={data.kpis.active_boms}
               description="Bills of Materials"
               icon={FileText}
             />
-            <StatsCard
+            <StatsCard className='text-slate-800'
               title="In Progress MOs"
               value={data.kpis.in_progress_mos}
               description="Manufacturing Orders"
               icon={ClipboardList}
             />
-            <StatsCard
+            <StatsCard className='text-slate-800'
               title="Pending Work Orders"
               value={data.kpis.pending_wos}
               description="Work orders pending"
               icon={Clock}
             />
-            <StatsCard
+            <StatsCard className='text-slate-800'
               title="Low Stock Items"
               value={data.kpis.low_stock_items}
               description="Items below minimum"
               icon={TrendingDown}
             />
-            <StatsCard
+            <StatsCard className='text-slate-800'
               title="Completed This Month"
               value={data.kpis.completed_this_month}
               description="Orders completed"
               icon={CheckCircle}
             />
           </div>
+
+          {/* Operator Analytics for Admin */}
+          {userRole === 'admin' && (
+            <OperatorAnalytics data={data?.operatorAnalytics ?? [
+              { id: '1', name: 'Sapnil', completed: 5, assigned: 7, in_progress: 2 },
+              { id: '2', name: 'Pakhee', completed: 3, assigned: 4, in_progress: 1 },
+              { id: '3', name: 'Adarsh', completed: 8, assigned: 10, in_progress: 2 }
+            ]} />
+          )}
 
           {/* Content Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -214,10 +220,10 @@ export default function DashboardPage() {
                         >
                           <div>
                             <div className="font-medium text-lg">
-                              MO-{order.id.toString().padStart(4, '0')}
+                             {order.product_name || 'Product'}
                             </div>
                             <div className="text-sm text-muted-foreground">
-                              {order.product_name || 'Product'} • {formatDate(order.created_at)}
+                              MO-{order.id.toString().padStart(4, '0')} • {formatDate(order.created_at)}
                             </div>
                             <div className="text-xs text-muted-foreground mt-1">
                               Qty: {order.quantity_to_produce}

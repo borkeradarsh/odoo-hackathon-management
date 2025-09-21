@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation'
 import { useAuth } from '@/components/auth/auth-provider'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { ProfileDropdown } from '@/components/layout/profile-dropdown'
 import { cn } from '@/lib/utils'
 import {
   LayoutDashboard,
@@ -102,6 +103,8 @@ export function Sidebar({ children }: SidebarProps) {
   const [signOutError, setSignOutError] = useState<string | null>(null);
   const { profile, user, signOut } = useAuth();
   const pathname = usePathname();
+  const [showProfileDropdown, setShowProfileDropdown] = useState(false);
+  const handleProfileClick = () => setShowProfileDropdown((v) => !v);
 
   const filteredNavItems = navItems.filter(item => {
     if (!item.roles) return true;
@@ -140,29 +143,30 @@ export function Sidebar({ children }: SidebarProps) {
 
       {/* Sidebar */}
       <div className={cn(
-        "fixed inset-y-0 left-0 z-40 w-64 bg-sidebar shadow-xl rounded-r-3xl border-r border-sidebar-border transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0",
+        "fixed inset-y-0 left-0 z-40 w-64 bg-slate-800 shadow-xl border-r border-sidebar-border transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0",
         isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
       )}>
-        <div className="flex flex-col h-full">
+        <div className="flex flex-col h-full ">
           {/* Header */}
-          <div className="p-6 border-b border-sidebar-border bg-sidebar-primary rounded-tr-3xl">
+          <div className="p-6 border-b border-sidebar-border bg-slate-800">
             <h1 className="text-2xl font-extrabold text-sidebar-primary-foreground tracking-tight">
               Manufacturing
             </h1>
-            <p className="text-sm text-sidebar-accent-foreground">Management System</p>
+            <p className="text-sm text-background">Management System</p>
           </div>
 
           {/* User info */}
-          <div className="p-4 border-b border-sidebar-border bg-sidebar-accent rounded-br-3xl">
-            <div className="flex items-center space-x-3">
+          {/* User info clickable for profile dropdown */}
+          <div className="p-4 bg-slate-800 relative">
+            <div className="flex items-center space-x-3 cursor-pointer" onClick={handleProfileClick}>
               <div className="w-10 h-10 bg-sidebar-ring rounded-full flex items-center justify-center shadow-md">
                 <User className="w-5 h-5 text-sidebar-primary" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 truncate">
+                <p className="text-sm font-medium text-white truncate ml-2">
                   {profile?.full_name || user?.email || 'User'}
                 </p>
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2 py-2">
                   <Badge 
                     variant={profile?.role === 'admin' ? 'default' : 'secondary'}
                     className="text-xs"
@@ -172,6 +176,11 @@ export function Sidebar({ children }: SidebarProps) {
                 </div>
               </div>
             </div>
+            {showProfileDropdown && (
+              <div className="z-50">
+                <ProfileDropdown onSignOut={handleSignOut} />
+              </div>
+            )}
           </div>
 
           {/* Navigation */}
@@ -187,13 +196,13 @@ export function Sidebar({ children }: SidebarProps) {
                   className={cn(
                     "flex items-center space-x-3 px-3 py-2 rounded-xl text-sm font-semibold transition-colors",
                     isActive
-                      ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-md"
-                      : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                      ? "bg-slate-200 text-foreground shadow-md scale-110"
+                      : "text-background hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                   )}
                 >
                   <Icon className={cn(
                     "w-5 h-5",
-                    isActive ? "text-sidebar-primary-foreground" : "text-sidebar-ring"
+                    isActive ? "text-slate-800" : "text-background"
                   )} />
                   <span>{item.title}</span>
                 </Link>
@@ -206,7 +215,7 @@ export function Sidebar({ children }: SidebarProps) {
             <Button
               variant="outline"
               onClick={handleSignOut}
-              className="w-full flex items-center space-x-2 rounded-full bg-destructive text-white shadow-md border-none"
+              className="w-full flex items-center space-x-2 rounded-full bg-gray-200 text-gray-700 shadow-md border-none hover:bg-red-600 hover:text-white transition-colors"
               disabled={signingOut}
             >
               <LogOut className="w-4 h-4" />

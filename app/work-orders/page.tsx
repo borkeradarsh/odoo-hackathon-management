@@ -201,8 +201,9 @@ export default function WorkOrdersPage() {
                   <TableBody>
                     {workOrders.map((wo: WorkOrderWithOperator) => {
                       const StatusIcon = getStatusIcon(wo.status);
+                      const isDone = ['done', 'completed'].includes(wo.status.toLowerCase());
                       return (
-                        <TableRow key={wo.id}>
+                        <TableRow key={wo.id} className={isDone ? 'bg-emerald-200' : ''}>
                           <TableCell className="font-medium">
                             WO-{wo.id.toString().padStart(4, '0')}
                           </TableCell>
