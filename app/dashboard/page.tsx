@@ -127,10 +127,30 @@ export default function DashboardPage() {
     return <DashboardError error={error} />;
   }
 
-  // Render the dashboard only when data is successfully loaded
-  if (!data) {
-    return <DashboardSpinner />;
-  }
+  // Ensure we have valid data with fallbacks
+  const dashboardData = data || {
+    kpis: {
+      total_products: 0,
+      active_boms: 0,
+      in_progress_mos: 0,
+      pending_wos: 0,
+      low_stock_items: 0,
+      completed_this_month: 0
+    },
+    recentOrders: [],
+    stockAlerts: [],
+    operatorAnalytics: []
+  };
+
+  // Additional safety check for kpis
+  const kpis = dashboardData.kpis || {
+    total_products: 0,
+    active_boms: 0,
+    in_progress_mos: 0,
+    pending_wos: 0,
+    low_stock_items: 0,
+    completed_this_month: 0
+  };
 
   return (
     <ProtectedRoute allowedRoles={['admin']}>
@@ -148,38 +168,38 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <StatsCard
               title="Total Products"
-              value={data.kpis.total_products}
+              value={dashboardData.kpis.total_products}
               description="Products in inventory"
               icon={Package}
               className='text-slate-800 bg-emerald-100'
             />
             <StatsCard className='text-slate-800'
               title="Active BOMs"
-              value={data.kpis.active_boms}
+              value={dashboardData.kpis.active_boms}
               description="Bills of Materials"
               icon={FileText}
             />
             <StatsCard className='text-slate-800'
               title="In Progress MOs"
-              value={data.kpis.in_progress_mos}
+              value={dashboardData.kpis.in_progress_mos}
               description="Manufacturing Orders"
               icon={ClipboardList}
             />
             <StatsCard className='text-slate-800'
               title="Pending Work Orders"
-              value={data.kpis.pending_wos}
+              value={dashboardData.kpis.pending_wos}
               description="Work orders pending"
               icon={Clock}
             />
             <StatsCard className='text-slate-800'
               title="Low Stock Items"
-              value={data.kpis.low_stock_items}
+              value={dashboardData.kpis.low_stock_items}
               description="Items below minimum"
               icon={TrendingDown}
             />
             <StatsCard className='text-slate-800'
               title="Completed This Month"
-              value={data.kpis.completed_this_month}
+              value={dashboardData.kpis.completed_this_month}
               description="Orders completed"
               icon={CheckCircle}
             />
@@ -187,7 +207,7 @@ export default function DashboardPage() {
 
           {/* Operator Analytics for Admin */}
           {userRole === 'admin' && (
-            <OperatorAnalytics data={data?.operatorAnalytics ?? [
+            <OperatorAnalytics data={dashboardData?.operatorAnalytics ?? [
               { id: '1', name: 'Sapnil', completed: 5, assigned: 7, in_progress: 2 },
               { id: '2', name: 'Pakhee', completed: 3, assigned: 4, in_progress: 1 },
               { id: '3', name: 'Adarsh', completed: 8, assigned: 10, in_progress: 2 }
@@ -206,14 +226,14 @@ export default function DashboardPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {data.recentOrders.length === 0 ? (
+                  {dashboardData.recentOrders.length === 0 ? (
                     <div className="text-center py-8">
                       <ClipboardList className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                       <p className="text-muted-foreground">No recent orders found</p>
                     </div>
                   ) : (
                     <div className="space-y-3">
-                      {data.recentOrders.map((order) => (
+                      {dashboardData.recentOrders.map((order) => (
                         <div
                           key={order.id}
                           className="flex items-center justify-between p-4 border rounded-lg hover:shadow-md transition-all bg-white"
